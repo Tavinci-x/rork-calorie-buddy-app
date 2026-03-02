@@ -408,7 +408,7 @@ const completionStyles = StyleSheet.create({
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { updateProfile, profile } = useApp();
+  const { updateProfile } = useApp();
   const [step, setStep] = useState<number>(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -639,7 +639,7 @@ export default function OnboardingScreen() {
               <>
                 <Text style={styles.title}>Make Buddy Yours</Text>
                 <Text style={styles.subtitle}>
-                  Take a photo of your cat and we'll turn it{'\n'}into a pixel art mascot!
+                  Take a photo of your cat and we&apos;ll turn it{'\n'}into a pixel art mascot!
                 </Text>
                 <View style={styles.photoOptions}>
                   {catPhotoUri && convertError ? (
@@ -689,7 +689,7 @@ export default function OnboardingScreen() {
       case 2:
         return (
           <View style={styles.stepCenter}>
-            <Text style={styles.title}>What's your goal?</Text>
+            <Text style={styles.title}>What&apos;s your goal?</Text>
             <Text style={styles.subtitle}>Buddy will evolve with your progress</Text>
             <View style={styles.goalCards}>
               <TouchableOpacity
@@ -718,7 +718,7 @@ export default function OnboardingScreen() {
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.stepFill}>
             <ScrollView contentContainerStyle={styles.stepScroll} showsVerticalScrollIndicator={false}>
               <Text style={styles.title}>About You</Text>
-              <Text style={styles.subtitle}>We'll use this to calculate your plan</Text>
+              <Text style={styles.subtitle}>We&apos;ll use this to calculate your plan</Text>
               <View style={styles.genderRow}>
                 {(['male', 'female', 'other'] as const).map(g => (
                   <TouchableOpacity
@@ -902,7 +902,7 @@ export default function OnboardingScreen() {
           >
             {renderStep()}
           </Animated.View>
-          {!(step === 1 && (isConverting || showReveal)) && (
+          {!(step === 2 && (isConverting || showReveal)) && (
             <View style={styles.footer}>
               <TouchableOpacity
                 style={[styles.nextBtn, isConverting && styles.nextBtnDisabled]}
@@ -1334,6 +1334,17 @@ const styles = StyleSheet.create({
   },
   activityLabelActive: {
     color: Colors.text,
+  },
+  nameInput: {
+    width: '100%',
+    marginTop: 28,
+    fontSize: 22,
+    textAlign: 'center' as const,
+    paddingVertical: 18,
+    borderBottomWidth: 2,
+    borderBottomColor: Colors.text,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
   },
   activityDesc: {
     fontSize: 13,
