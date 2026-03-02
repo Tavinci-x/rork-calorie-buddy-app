@@ -2,7 +2,7 @@ import React, { useMemo, useEffect, useRef, useState, useCallback } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Platform, ActivityIndicator, Modal, Pressable, Dimensions } from 'react-native';
 import { useRouter, Redirect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Trash2, Camera, ScanBarcode, X, Search, UtensilsCrossed, Bookmark } from 'lucide-react-native';
+import { Plus, Trash2, Camera, ScanBarcode, X, Search, UtensilsCrossed } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import BuddyMascot from '@/components/BuddyMascot';
@@ -11,12 +11,11 @@ import CalorieRing from '@/components/CalorieRing';
 import MacroBar from '@/components/MacroBar';
 import { useApp } from '@/providers/AppProvider';
 import { getRandomMessage } from '@/constants/buddy';
-import { getCurrentHour, getTodayDate } from '@/utils/helpers';
+import { getCurrentHour } from '@/utils/helpers';
 import { type MealType } from '@/types';
 
 function getWeekDays() {
   const today = new Date();
-  const dayOfWeek = today.getDay();
   const days: { label: string; date: number; isToday: boolean; dateStr: string; hasData: boolean }[] = [];
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -140,7 +139,7 @@ export default function HomeScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           <View style={styles.headerRow}>
             <View>
-              <Text style={styles.appName}>CalBuddy</Text>
+              <Text style={styles.appName}>MeowCal</Text>
             </View>
             {streak > 0 && (
               <View style={styles.streakBadge}>

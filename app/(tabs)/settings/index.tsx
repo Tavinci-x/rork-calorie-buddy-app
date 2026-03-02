@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { User, Target, RotateCcw, ChevronRight, TrendingDown, TrendingUp, Camera, ScanBarcode, Heart, Cat } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -16,7 +15,7 @@ import { useRouter } from 'expo-router';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { profile, updateProfile, buddyStage, buddyMood } = useApp();
+  const { profile, updateProfile, buddyStage } = useApp();
   const [editSection, setEditSection] = useState<string | null>(null);
 
   const [age, setAge] = useState<string>(profile.age.toString());
@@ -104,7 +103,7 @@ export default function SettingsScreen() {
               />
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>{profile.name || 'CalBuddy User'}</Text>
+              <Text style={styles.profileName}>{profile.name || 'MeowCal User'}</Text>
               <Text style={styles.profileGoal}>
                 {profile.goalType === 'lose' ? 'Losing weight' : 'Gaining weight'} · {profile.dailyCalorieTarget} cal/day
               </Text>
@@ -355,7 +354,7 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.version}>CalBuddy v1.0.0</Text>
+          <Text style={styles.version}>MeowCal v1.0.0</Text>
 
           <View style={styles.bottomSpacer} />
         </ScrollView>

@@ -12,7 +12,7 @@ import { calculateDailyTarget } from '@/utils/calculations';
 import { convertToCartoon, LOADING_MESSAGES, MAX_GENERATION_ATTEMPTS } from '@/utils/cartoonify';
 import { type ActivityLevel, ACTIVITY_LEVELS } from '@/types';
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 9;
 
 function LoadingOverlay() {
   const [messageIndex, setMessageIndex] = useState<number>(0);
@@ -413,6 +413,7 @@ export default function OnboardingScreen() {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
+  const [name, setName] = useState<string>('');
   const [goalType, setGoalType] = useState<'gain' | 'lose'>('lose');
   const [gender, setGender] = useState<'male' | 'female' | 'other'>('male');
   const [age, setAge] = useState<string>('25');
@@ -463,6 +464,7 @@ export default function OnboardingScreen() {
       const targetDate = new Date();
       targetDate.setMonth(targetDate.getMonth() + (parseInt(months) || 3));
       updateProfile({
+        name: name.trim() || 'MeowCal User',
         goalType,
         gender,
         age: parseInt(age) || 25,
@@ -481,7 +483,7 @@ export default function OnboardingScreen() {
       });
       router.replace('/(tabs)/(home)' as any);
     }
-  }, [step, animateTransition, goalType, gender, age, height, weight, goalWeight, months, finalTarget, buddyImageBase64, activityLevel, updateProfile, router, generationCount]);
+  }, [step, animateTransition, name, goalType, gender, age, height, weight, goalWeight, months, finalTarget, buddyImageBase64, activityLevel, updateProfile, router, generationCount]);
 
   const prevStep = useCallback(() => {
     if (step > 0) {
@@ -578,7 +580,7 @@ export default function OnboardingScreen() {
 
   const getNextButtonText = () => {
     if (step === TOTAL_STEPS - 1) return "Let's Start!";
-    if (step === 1 && !buddyImageBase64 && !isConverting) return 'Skip';
+    if (step === 2 && !buddyImageBase64 && !isConverting) return 'Skip';
     return 'Continue';
   };
 
@@ -596,13 +598,33 @@ export default function OnboardingScreen() {
                 contentFit="contain"
               />
             </View>
-            <Text style={styles.title}>Welcome to CalBuddy!</Text>
+            <Text style={styles.title}>Welcome to MeowCal!</Text>
             <Text style={styles.subtitle}>
               Your pixel cat crew is here to help{"\n"}you crush your calorie goals!
             </Text>
           </View>
         );
       case 1:
+        return (
+          <View style={styles.stepCenter}>
+            <Text style={styles.title}>What&apos;s your name?</Text>
+            <Text style={styles.subtitle}>Your cat will know who to cheer for</Text>
+            <View style={[styles.inputGroup, { width: '100%', marginTop: 32 }]}>
+              <TextInput
+                style={[styles.input, { textAlign: 'center' as const, fontSize: 22 }]}
+                value={name}
+                onChangeText={setName}
+                placeholder="Enter your name"
+                placeholderTextColor={Colors.textMuted}
+                autoCapitalize="words"
+                returnKeyType="done"
+                onSubmitEditing={nextStep}
+                testID="input-name"
+              />
+            </View>
+          </View>
+        );
+      case 2:
         return (
           <View style={styles.stepCenter}>
             {isConverting ? (
@@ -686,7 +708,7 @@ export default function OnboardingScreen() {
             )}
           </View>
         );
-      case 2:
+      case 3:
         return (
           <View style={styles.stepCenter}>
             <Text style={styles.title}>What&apos;s your goal?</Text>
@@ -713,7 +735,7 @@ export default function OnboardingScreen() {
             </View>
           </View>
         );
-      case 3:
+      case 4:
         return (
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.stepFill}>
             <ScrollView contentContainerStyle={styles.stepScroll} showsVerticalScrollIndicator={false}>
@@ -771,7 +793,7 @@ export default function OnboardingScreen() {
             </ScrollView>
           </KeyboardAvoidingView>
         );
-      case 4:
+      case 5:
         return (
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.stepFill}>
             <ScrollView contentContainerStyle={styles.stepScroll} showsVerticalScrollIndicator={false}>
@@ -807,7 +829,7 @@ export default function OnboardingScreen() {
             </ScrollView>
           </KeyboardAvoidingView>
         );
-      case 5:
+      case 6:
         return (
           <View style={styles.stepFill}>
             <ScrollView contentContainerStyle={styles.stepScroll} showsVerticalScrollIndicator={false}>
@@ -834,7 +856,7 @@ export default function OnboardingScreen() {
             </ScrollView>
           </View>
         );
-      case 6:
+      case 7:
         return (
           <View style={styles.stepCenter}>
             <Text style={styles.title}>Your Calorie Plan</Text>
@@ -869,7 +891,7 @@ export default function OnboardingScreen() {
             </Text>
           </View>
         );
-      case 7:
+      case 8:
         return (
           <CompletionScreen
             buddyImageBase64={buddyImageBase64}
