@@ -10,7 +10,11 @@ export const LOADING_MESSAGES = [
 
 export const MAX_GENERATION_ATTEMPTS = 3;
 
-const PIXEL_ART_PROMPT = `Convert this cat photo into a 16-bit pixel art sprite in the style of classic SNES / Super Nintendo era games.
+export async function convertToCartoon(base64Image: string): Promise<string> {
+  const url = 'https://toolkit.rork.com/images/edit/';
+  console.log('Starting pixel art conversion via toolkit, base64 length:', base64Image.length);
+
+  const prompt = `Convert this cat photo into a 16-bit pixel art sprite in the style of classic SNES / Super Nintendo era games.
 
 CRITICAL REQUIREMENTS:
 - MUST preserve the exact fur colors and color distribution from the photo
@@ -23,16 +27,11 @@ CRITICAL REQUIREMENTS:
 - More detailed sprites with finer pixel work, like characters from Chrono Trigger, Secret of Mana, or Final Fantasy VI
 - The cat should be sitting upright in a cute front-facing pose
 - Clean pixel art with defined outlines but smoother than 8-bit chunky style
-- BACKGROUND MUST BE COMPLETELY TRANSPARENT — no background color at all
+- BACKGROUND MUST BE COMPLETELY WHITE or TRANSPARENT
 - Do NOT draw any floor, shadow, border, frame, or pattern behind the cat
 - The cat should look cute and friendly with slightly oversized head (chibi proportions)
 - NO realistic rendering — this must look like a 16-bit retro pixel art game character
 - The pixel art cat should be immediately recognizable as the same cat from the photo`;
-
-export async function convertToCartoon(base64Image: string): Promise<string> {
-  const baseUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL || '';
-  const url = `${baseUrl}/api/trpc/catMascot.generate`;
-  console.log('Starting cartoon conversion via backend tRPC, base64 length:', base64Image.length);
 
   const response = await fetch(url, {
     method: 'POST',
@@ -40,22 +39,22 @@ export async function convertToCartoon(base64Image: string): Promise<string> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      json: {
-        imageBase64: base64Image,
-      },
+      prompt,
+      images: [{ type: 'image', image: base64Image }],
+      aspectRatio: '1:1',
     }),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.log('Backend cat mascot error:', response.status, errorText);
+    console.log('Toolkit image edit error:', response.status, errorText);
     throw new Error('Failed to generate pixel art');
   }
 
   const data = await response.json();
-  console.log('Cartoon conversion successful via backend');
+  console.log('Pixel art conversion successful via toolkit');
 
-  const imageBase64 = data?.result?.data?.json?.imageBase64;
+  const imageBase64 = data?.image?.base64Data;
   if (!imageBase64) {
     console.log('Unexpected response shape:', JSON.stringify(data).slice(0, 300));
     throw new Error('No image data in response');
