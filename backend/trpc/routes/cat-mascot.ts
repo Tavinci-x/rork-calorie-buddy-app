@@ -41,6 +41,7 @@ CRITICAL REQUIREMENTS:
       form.append("prompt", pixelArtPrompt);
       form.append("size", "1024x1024");
       form.append("quality", "low");
+      form.append("response_format", "b64_json");
 
       console.log("[cat-mascot] Sending request to OpenAI /v1/images/edits...");
 
