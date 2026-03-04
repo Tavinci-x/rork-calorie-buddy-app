@@ -19,7 +19,7 @@ app.use(
 );
 
 app.get("/", (c) => {
-  return c.json({ status: "ok", message: "API is running" });
+  return c.json({ status: "ok", message: "CalBuddy API is running", timestamp: new Date().toISOString() });
 });
 
 export default app;
