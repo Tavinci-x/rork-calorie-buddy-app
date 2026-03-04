@@ -94,6 +94,7 @@ CRITICAL REQUIREMENTS:
       formData.append("size", "1024x1024");
       formData.append("quality", "medium");
       formData.append("background", "transparent");
+      formData.append("response_format", "b64_json");
 
       console.log("Sending multipart/form-data request to OpenAI images/edits...");
 
