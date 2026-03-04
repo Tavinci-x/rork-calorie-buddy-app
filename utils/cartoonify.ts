@@ -30,33 +30,36 @@ CRITICAL REQUIREMENTS:
 - The pixel art cat should be immediately recognizable as the same cat from the photo`;
 
 export async function convertToCartoon(base64Image: string): Promise<string> {
-  console.log('Starting cartoon conversion via toolkit, base64 length:', base64Image.length);
+  const baseUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL || '';
+  const url = `${baseUrl}/api/trpc/catMascot.generate`;
+  console.log('Starting cartoon conversion via backend tRPC, base64 length:', base64Image.length);
 
-  const response = await fetch('https://toolkit.rork.com/images/edit/', {
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      prompt: PIXEL_ART_PROMPT,
-      images: [{ type: 'image', image: base64Image }],
-      aspectRatio: '1:1',
+      json: {
+        imageBase64: base64Image,
+      },
     }),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.log('Toolkit image edit error:', response.status, errorText);
+    console.log('Backend cat mascot error:', response.status, errorText);
     throw new Error('Failed to generate pixel art');
   }
 
   const data = await response.json();
-  console.log('Cartoon conversion successful via toolkit');
+  console.log('Cartoon conversion successful via backend');
 
-  if (!data.image?.base64Data) {
-    console.log('Unexpected response shape:', JSON.stringify(data).slice(0, 200));
+  const imageBase64 = data?.result?.data?.json?.imageBase64;
+  if (!imageBase64) {
+    console.log('Unexpected response shape:', JSON.stringify(data).slice(0, 300));
     throw new Error('No image data in response');
   }
 
-  return data.image.base64Data;
+  return imageBase64;
 }
