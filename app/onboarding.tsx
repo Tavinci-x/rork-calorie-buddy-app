@@ -9,7 +9,8 @@ import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useApp } from '@/providers/AppProvider';
 import { calculateDailyTarget } from '@/utils/calculations';
-import { convertToCartoon, LOADING_MESSAGES, MAX_GENERATION_ATTEMPTS } from '@/utils/cartoonify';
+import { LOADING_MESSAGES, MAX_GENERATION_ATTEMPTS } from '@/utils/cartoonify';
+import { trpc } from '@/lib/trpc';
 import { type ActivityLevel, ACTIVITY_LEVELS } from '@/types';
 
 const TOTAL_STEPS = 9;
@@ -431,6 +432,8 @@ export default function OnboardingScreen() {
   const [generationCount, setGenerationCount] = useState<number>(0);
   const [showReveal, setShowReveal] = useState<boolean>(false);
 
+  const generateMascot = trpc.catMascot.generate.useMutation();
+
   const calculatedTarget = calculateDailyTarget({
     currentWeightKg: parseFloat(weight) || 70,
     heightCm: parseFloat(height) || 170,
@@ -539,7 +542,8 @@ export default function OnboardingScreen() {
               reader.readAsDataURL(blob);
             });
           }
-          const cartoon = await convertToCartoon(imageBase64, asset.uri);
+          const result = await generateMascot.mutateAsync({ imageBase64 });
+          const cartoon = result.imageBase64;
           setBuddyImageBase64(cartoon);
           setGenerationCount(c => c + 1);
           setShowReveal(true);
@@ -554,7 +558,7 @@ export default function OnboardingScreen() {
     } catch (err) {
       console.log('Image picker error:', err);
     }
-  }, [generationCount]);
+  }, [generationCount, generateMascot]);
 
   const handleAcceptMascot = useCallback(() => {
     setShowReveal(false);
