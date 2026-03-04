@@ -13,18 +13,18 @@ export const LOADING_MESSAGES = [
 export const MAX_GENERATION_ATTEMPTS = 3;
 
 export async function convertToCartoon(base64Image: string): Promise<string> {
-  console.log('Starting cartoon conversion via backend, base64 length:', base64Image.length);
+  console.log('[cartoonify] Starting conversion, base64 length:', base64Image.length);
 
   try {
     const result = await trpcClient.catMascot.generate.mutate({
       imageBase64: base64Image,
     });
 
-    console.log('Cartoon conversion successful');
+    console.log('[cartoonify] Conversion successful');
     return result.imageBase64;
   } catch (err: any) {
-    console.log('Full error:', JSON.stringify(err));
-    const message = err?.message || err?.data?.message || JSON.stringify(err);
+    console.log('[cartoonify] Error:', err?.message ?? JSON.stringify(err));
+    const message = err?.message || err?.data?.message || 'Unknown error occurred';
     throw new Error(message);
   }
 }
