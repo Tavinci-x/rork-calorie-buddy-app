@@ -41,7 +41,6 @@ CRITICAL REQUIREMENTS:
       form.append("prompt", pixelArtPrompt);
       form.append("size", "1024x1024");
       form.append("quality", "low");
-      form.append("response_format", "b64_json");
 
       console.log("[cat-mascot] Sending request to OpenAI /v1/images/edits...");
 
@@ -60,50 +59,59 @@ CRITICAL REQUIREMENTS:
       }
 
       console.log("[cat-mascot] Response status:", response.status);
+      console.log("[cat-mascot] Content-Type:", response.headers.get("content-type"));
 
-      let rawText: string;
-      try {
-        rawText = await response.text();
-      } catch (readErr: any) {
-        console.log("[cat-mascot] Failed to read body:", readErr?.message);
-        throw new Error("Failed to read OpenAI response");
-      }
-
-      console.log(
-        "[cat-mascot] Raw response (first 300):",
-        rawText.slice(0, 300)
-      );
+      const contentType = response.headers.get("content-type") || "";
 
       if (!response.ok) {
-        console.log("[cat-mascot] API error:", response.status, rawText);
-        throw new Error(
-          `OpenAI error ${response.status}: ${rawText.slice(0, 400)}`
-        );
+        let errorText: string;
+        try {
+          errorText = await response.text();
+        } catch {
+          errorText = "Could not read error body";
+        }
+        console.log("[cat-mascot] API error:", response.status, errorText);
+        throw new Error(`OpenAI error ${response.status}: ${errorText.slice(0, 400)}`);
       }
 
-      let data: any;
-      try {
-        data = JSON.parse(rawText);
-      } catch (parseErr: any) {
-        console.log("[cat-mascot] JSON parse failed:", parseErr?.message);
-        console.log("[cat-mascot] Raw text:", rawText.slice(0, 500));
-        throw new Error(
-          `JSON parse error. Raw: ${rawText.slice(0, 300)}`
-        );
+      let b64: string;
+
+      if (contentType.includes("application/json")) {
+        console.log("[cat-mascot] Response is JSON");
+        const rawText = await response.text();
+        console.log("[cat-mascot] JSON response (first 200):", rawText.slice(0, 200));
+
+        let data: any;
+        try {
+          data = JSON.parse(rawText);
+        } catch (parseErr: any) {
+          console.log("[cat-mascot] JSON parse failed:", parseErr?.message);
+          throw new Error(`JSON parse error. Raw: ${rawText.slice(0, 300)}`);
+        }
+
+        const jsonB64 = data?.data?.[0]?.b64_json;
+        if (!jsonB64) {
+          throw new Error(`No b64_json in response. Keys: ${JSON.stringify(Object.keys(data))}`);
+        }
+        b64 = jsonB64;
+      } else {
+        console.log("[cat-mascot] Response is binary, converting to base64...");
+        try {
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          b64 = buffer.toString("base64");
+          console.log("[cat-mascot] Converted binary to base64, length:", b64.length);
+        } catch (binErr: any) {
+          console.log("[cat-mascot] Binary read error:", binErr?.message);
+          throw new Error(`Failed to read binary response: ${binErr?.message}`);
+        }
       }
 
-      const b64 = data?.data?.[0]?.b64_json;
-      if (!b64) {
-        console.log(
-          "[cat-mascot] No b64_json in response:",
-          JSON.stringify(data).slice(0, 400)
-        );
-        throw new Error(
-          `No image in response. Keys: ${Object.keys(data).join(", ")}`
-        );
+      if (!b64 || b64.length < 100) {
+        throw new Error("Image data is empty or too small");
       }
 
       console.log("[cat-mascot] Success, b64 length:", b64.length);
-      return { imageBase64: b64 as string };
+      return { imageBase64: b64 };
     }),
 });
