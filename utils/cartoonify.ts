@@ -31,55 +31,37 @@ CRITICAL REQUIREMENTS:
 - The pixel art cat should be immediately recognizable as the same cat from the photo`;
 
 export async function convertToCartoon(base64Image: string, _imageUri?: string): Promise<string> {
-  const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
-  if (!apiKey) {
-    console.log('EXPO_PUBLIC_OPENAI_API_KEY is not set');
-    throw new Error('OpenAI API key is not configured');
-  }
+  console.log('Starting cartoon conversion via toolkit image edit API, base64 length:', base64Image.length);
 
-  console.log('Starting cartoon conversion via direct OpenAI call, base64 length:', base64Image.length);
+  const body = {
+    prompt: PIXEL_ART_PROMPT,
+    images: [{ type: 'image' as const, image: base64Image }],
+    aspectRatio: '1:1',
+  };
 
-  const response = await fetch('https://api.openai.com/v1/images/edits', {
+  console.log('Sending request to toolkit image edit endpoint...');
+
+  const response = await fetch('https://toolkit.rork.com/images/edit/', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
     },
-    body: buildFormData(base64Image),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.log('OpenAI API error:', response.status, errorText);
-    throw new Error(`OpenAI API error: ${response.status}`);
+    console.log('Toolkit image edit API error:', response.status, errorText);
+    throw new Error(`Image edit API error: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
-  console.log('OpenAI response received successfully');
+  console.log('Toolkit image edit response received successfully');
 
-  if (!data.data?.[0]?.b64_json) {
-    console.log('Unexpected OpenAI response shape:', JSON.stringify(data).slice(0, 200));
-    throw new Error('No image data in OpenAI response');
+  if (!data.image?.base64Data) {
+    console.log('Unexpected response shape:', JSON.stringify(data).slice(0, 200));
+    throw new Error('No image data in response');
   }
 
-  return data.data[0].b64_json as string;
-}
-
-function buildFormData(base64Image: string): FormData {
-  const binaryString = atob(base64Image);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  const blob = new Blob([bytes], { type: 'image/png' });
-
-  const formData = new FormData();
-  formData.append('image', blob, 'cat.png');
-  formData.append('model', 'gpt-image-1');
-  formData.append('prompt', PIXEL_ART_PROMPT);
-  formData.append('size', '1024x1024');
-  formData.append('quality', 'medium');
-  formData.append('background', 'transparent');
-  formData.append('response_format', 'b64_json');
-
-  return formData;
+  return data.image.base64Data as string;
 }
