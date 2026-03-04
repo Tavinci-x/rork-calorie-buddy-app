@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 export const LOADING_MESSAGES = [
   "Analyzing your cat's fluffiness...",
   "Counting whiskers...",
@@ -30,38 +32,71 @@ CRITICAL REQUIREMENTS:
 - NO realistic rendering — this must look like a 16-bit retro pixel art game character
 - The pixel art cat should be immediately recognizable as the same cat from the photo`;
 
+function base64ToBlob(base64: string, mimeType: string): Blob {
+  const byteCharacters = atob(base64);
+  const byteNumbers = new Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  const byteArray = new Uint8Array(byteNumbers);
+  return new Blob([byteArray], { type: mimeType });
+}
+
 export async function convertToCartoon(base64Image: string, _imageUri?: string): Promise<string> {
-  console.log('Starting cartoon conversion via toolkit image edit API, base64 length:', base64Image.length);
+  const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+  if (!apiKey) {
+    console.log('EXPO_PUBLIC_OPENAI_API_KEY is not set');
+    throw new Error('OpenAI API key is not configured');
+  }
 
-  const body = {
-    prompt: PIXEL_ART_PROMPT,
-    images: [{ type: 'image' as const, image: base64Image }],
-    aspectRatio: '1:1',
-  };
+  console.log('Starting cartoon conversion via OpenAI API directly, base64 length:', base64Image.length);
 
-  console.log('Sending request to toolkit image edit endpoint...');
+  const imageBlob = base64ToBlob(base64Image, 'image/png');
+  console.log('Image blob created, size:', imageBlob.size);
 
-  const response = await fetch('https://toolkit.rork.com/images/edit/', {
+  const formData = new FormData();
+
+  if (Platform.OS === 'web') {
+    const file = new File([imageBlob], 'cat.png', { type: 'image/png' });
+    formData.append('image', file);
+  } else {
+    formData.append('image', {
+      uri: `data:image/png;base64,${base64Image}`,
+      type: 'image/png',
+      name: 'cat.png',
+    } as any);
+  }
+
+  formData.append('model', 'gpt-image-1');
+  formData.append('prompt', PIXEL_ART_PROMPT);
+  formData.append('size', '1024x1024');
+  formData.append('quality', 'medium');
+  formData.append('background', 'transparent');
+  formData.append('response_format', 'b64_json');
+
+  console.log('Sending request to OpenAI images/edits endpoint...');
+
+  const response = await fetch('https://api.openai.com/v1/images/edits', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify(body),
+    body: formData,
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.log('Toolkit image edit API error:', response.status, errorText);
-    throw new Error(`Image edit API error: ${response.status} - ${errorText}`);
+    console.log('OpenAI API error:', response.status, errorText);
+    throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
-  console.log('Toolkit image edit response received successfully');
+  console.log('OpenAI response received successfully');
 
-  if (!data.image?.base64Data) {
-    console.log('Unexpected response shape:', JSON.stringify(data).slice(0, 200));
-    throw new Error('No image data in response');
+  if (!data.data?.[0]?.b64_json) {
+    console.log('Unexpected OpenAI response shape:', JSON.stringify(data).slice(0, 200));
+    throw new Error('No image data in OpenAI response');
   }
 
-  return data.image.base64Data as string;
+  return data.data[0].b64_json as string;
 }
