@@ -13,13 +13,10 @@ export const catMascotRouter = createTRPCRouter({
 
       console.log("Starting cat mascot generation...");
 
-      const imageBytes = Buffer.from(input.imageBase64, "base64");
-      const imageBlob = new Blob([imageBytes], { type: "image/jpeg" });
+      const rawBase64 = input.imageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
+      console.log("Base64 length after stripping prefix:", rawBase64.length);
 
-      const formData = new FormData();
-      formData.append("image", imageBlob, "cat.jpg");
-      formData.append("model", "gpt-image-1");
-      formData.append("prompt", `Convert this cat photo into a 16-bit pixel art sprite in the style of classic SNES / Super Nintendo era games.
+      const prompt = `Convert this cat photo into a 16-bit pixel art sprite in the style of classic SNES / Super Nintendo era games.
 
 CRITICAL REQUIREMENTS:
 - MUST preserve the exact fur colors and color distribution from the photo
@@ -31,31 +28,64 @@ CRITICAL REQUIREMENTS:
 - The cat should be sitting upright in a cute front-facing pose
 - BACKGROUND MUST BE COMPLETELY TRANSPARENT
 - The cat should look cute and friendly with slightly oversized head (chibi proportions)
-- NO realistic rendering — this must look like a 16-bit retro pixel art game character`);
-      formData.append("size", "1024x1024");
-      formData.append("quality", "medium");
-      formData.append("output_format", "png");
+- NO realistic rendering — this must look like a 16-bit retro pixel art game character`;
 
-      const response = await fetch("https://api.openai.com/v1/images/edits", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${openaiKey}`,
+      const requestBody = {
+        model: "gpt-image-1",
+        prompt: prompt,
+        size: "1024x1024",
+        quality: "medium",
+        image: {
+          type: "base64",
+          media_type: "image/jpeg",
+          data: rawBase64,
         },
-        body: formData,
-      });
+      };
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log("OpenAI API error:", response.status, errorText);
-        throw new Error(`OpenAI API error: ${response.status}`);
+      let response: Response;
+      try {
+        response = await fetch("https://api.openai.com/v1/images/generations", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${openaiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        });
+      } catch (fetchErr: any) {
+        console.log("Fetch error:", fetchErr?.message || fetchErr);
+        throw new Error(`Network error calling OpenAI: ${fetchErr?.message || "unknown"}`);
       }
 
-      const data = await response.json();
-      console.log("OpenAI response received");
+      let rawText: string;
+      try {
+        rawText = await response.text();
+        console.log("OpenAI raw response status:", response.status);
+        console.log("OpenAI raw response (first 500 chars):", rawText.slice(0, 500));
+      } catch (readErr: any) {
+        console.log("Error reading response body:", readErr?.message || readErr);
+        throw new Error(`Failed to read OpenAI response body: ${readErr?.message || "unknown"}`);
+      }
+
+      if (!response.ok) {
+        console.log("OpenAI API error:", response.status, rawText.slice(0, 1000));
+        throw new Error(`OpenAI API error ${response.status}: ${rawText.slice(0, 500)}`);
+      }
+
+      let data: any;
+      try {
+        data = JSON.parse(rawText);
+      } catch (parseErr: any) {
+        console.log("JSON parse error:", parseErr?.message);
+        console.log("Raw response that failed to parse (first 1000 chars):", rawText.slice(0, 1000));
+        throw new Error(`Failed to parse OpenAI response as JSON. Raw response: ${rawText.slice(0, 300)}`);
+      }
+
+      console.log("OpenAI parsed response keys:", Object.keys(data));
 
       if (!data.data?.[0]?.b64_json) {
-        console.log("Unexpected OpenAI response:", JSON.stringify(data).slice(0, 200));
-        throw new Error("No image data in OpenAI response");
+        console.log("Unexpected OpenAI response structure:", JSON.stringify(data).slice(0, 500));
+        throw new Error(`No image data in OpenAI response. Response: ${JSON.stringify(data).slice(0, 300)}`);
       }
 
       return {
