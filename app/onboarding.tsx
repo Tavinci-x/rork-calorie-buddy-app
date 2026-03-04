@@ -539,7 +539,7 @@ export default function OnboardingScreen() {
               reader.readAsDataURL(blob);
             });
           }
-          const cartoon = await convertToCartoon(imageBase64);
+          const cartoon = await convertToCartoon(imageBase64, asset.uri);
           setBuddyImageBase64(cartoon);
           setGenerationCount(c => c + 1);
           setShowReveal(true);
