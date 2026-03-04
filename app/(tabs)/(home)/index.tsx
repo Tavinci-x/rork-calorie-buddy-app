@@ -17,7 +17,7 @@ import { type MealType } from '@/types';
 function getWeekDays() {
   const today = new Date();
   const days: { label: string; date: number; isToday: boolean; dateStr: string; hasData: boolean }[] = [];
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
   for (let i = -3; i <= 3; i++) {
     const d = new Date(today);
@@ -32,6 +32,13 @@ function getWeekDays() {
   }
   return days;
 }
+
+const MEAL_ICONS: Record<MealType, string> = {
+  breakfast: '🍳',
+  lunch: '🍱',
+  dinner: '🍽️',
+  snack: '🍪',
+};
 
 const MEAL_LABELS: Record<MealType, string> = {
   breakfast: 'Breakfast',
@@ -120,6 +127,7 @@ export default function HomeScreen() {
   const proteinTarget = Math.round(profile.dailyCalorieTarget * 0.3 / 4);
   const carbsTarget = Math.round(profile.dailyCalorieTarget * 0.45 / 4);
   const fatTarget = Math.round(profile.dailyCalorieTarget * 0.25 / 9);
+  const calPercent = profile.dailyCalorieTarget > 0 ? Math.min(Math.round((todayCalories / profile.dailyCalorieTarget) * 100), 999) : 0;
 
   if (!isReady) {
     return (
@@ -138,9 +146,7 @@ export default function HomeScreen() {
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.appName}>MeowCal</Text>
-            </View>
+            <Text style={styles.appName}>MeowCal</Text>
             {streak > 0 && (
               <View style={styles.streakBadge}>
                 <Text style={styles.streakIcon}>🔥</Text>
@@ -154,9 +160,9 @@ export default function HomeScreen() {
               <View key={i} style={styles.weekDayCol}>
                 <Text style={[styles.weekDayLabel, day.isToday && styles.weekDayLabelToday]}>{day.label}</Text>
                 <View style={[
-                  styles.weekDayCircle,
-                  day.isToday && styles.weekDayCircleToday,
-                  day.hasData && !day.isToday && styles.weekDayCircleHasData,
+                  styles.weekDayBox,
+                  day.isToday && styles.weekDayBoxToday,
+                  day.hasData && !day.isToday && styles.weekDayBoxHasData,
                 ]}>
                   <Text style={[
                     styles.weekDayDate,
@@ -164,6 +170,9 @@ export default function HomeScreen() {
                     day.hasData && !day.isToday && styles.weekDayDateHasData,
                   ]}>{day.date}</Text>
                 </View>
+                {day.hasData && !day.isToday && (
+                  <View style={styles.weekDayDot} />
+                )}
               </View>
             ))}
           </ScrollView>
@@ -174,86 +183,61 @@ export default function HomeScreen() {
               stage={buddyStage}
               mood={buddyMood}
               color={profile.buddyColor}
-              size={160}
+              size={140}
               goalType={profile.goalType}
               imageBase64={profile.buddyImageBase64}
             />
           </View>
 
-          <View style={styles.calorieCard}>
-            <View style={styles.calorieCardInner}>
-              <View style={styles.calorieInfo}>
-                <Text style={styles.calorieConsumed}>
-                  <Text style={styles.calorieBig}>{todayCalories}</Text>
-                  <Text style={styles.calorieTarget}> /{profile.dailyCalorieTarget}</Text>
-                </Text>
-                <Text style={styles.calorieLabel}>Calories eaten</Text>
-              </View>
-              <CalorieRing consumed={todayCalories} target={profile.dailyCalorieTarget} size={100} strokeWidth={8} />
+          <View style={styles.statsCard}>
+            <View style={styles.statsHeader}>
+              <Text style={styles.statsLabel}>⚡ Daily Energy</Text>
+              <Text style={styles.statsPercent}>{calPercent}%</Text>
+            </View>
+            <View style={styles.calorieRow}>
+              <Text style={styles.calorieBig}>{todayCalories.toLocaleString()}</Text>
+              <Text style={styles.calorieTarget}> / {profile.dailyCalorieTarget.toLocaleString()} cal</Text>
+            </View>
+            <CalorieRing consumed={todayCalories} target={profile.dailyCalorieTarget} />
+
+            <View style={styles.statsDivider} />
+
+            <View style={styles.macroRow}>
+              <MacroBar
+                label="Protein"
+                value={todayProtein}
+                target={proteinTarget}
+                color={Colors.protein}
+                bgColor={Colors.proteinBg}
+                icon="🍖"
+              />
+              <View style={styles.macroGap} />
+              <MacroBar
+                label="Carbs"
+                value={todayCarbs}
+                target={carbsTarget}
+                color={Colors.carbs}
+                bgColor={Colors.carbsBg}
+                icon="🌾"
+              />
+              <View style={styles.macroGap} />
+              <MacroBar
+                label="Fat"
+                value={todayFat}
+                target={fatTarget}
+                color={Colors.fat}
+                bgColor={Colors.fatBg}
+                icon="🥑"
+              />
             </View>
           </View>
 
-          <View style={styles.macroRow}>
-            <MacroBar
-              label="Protein eaten"
-              value={todayProtein}
-              target={proteinTarget}
-              color={Colors.protein}
-              bgColor={Colors.proteinBg}
-              icon="🍖"
-            />
-            <View style={styles.macroGap} />
-            <MacroBar
-              label="Carbs eaten"
-              value={todayCarbs}
-              target={carbsTarget}
-              color={Colors.carbs}
-              bgColor={Colors.carbsBg}
-              icon="🌾"
-            />
-            <View style={styles.macroGap} />
-            <MacroBar
-              label="Fat eaten"
-              value={todayFat}
-              target={fatTarget}
-              color={Colors.fat}
-              bgColor={Colors.fatBg}
-              icon="🥑"
-            />
-          </View>
-
-          <View style={styles.quickActionsRow}>
-            <TouchableOpacity
-              style={styles.quickActionBtn}
-              onPress={() => {
-                router.push('/scan-food' as any);
-                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-            >
-              <View style={styles.quickActionIcon}>
-                <Camera size={20} color={Colors.text} />
-              </View>
-              <Text style={styles.quickActionText}>Scan Food</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.quickActionBtn}
-              onPress={() => {
-                router.push('/barcode-scanner' as any);
-                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-            >
-              <View style={styles.quickActionIcon}>
-                <ScanBarcode size={20} color={Colors.text} />
-              </View>
-              <Text style={styles.quickActionText}>Barcode</Text>
-            </TouchableOpacity>
-          </View>
-
           <View style={styles.mealsSection}>
-            <Text style={styles.sectionTitle}>Recently uploaded</Text>
+            <Text style={styles.sectionTitle}>{"📋 Today's Meals"}</Text>
             {todayMeals.length === 0 ? (
               <TouchableOpacity style={styles.emptyMeals} onPress={openLogPopup} activeOpacity={0.7}>
-                <Text style={styles.emptyText}>Tap to add your first meal of the day</Text>
+                <Text style={styles.emptyIcon}>🐱</Text>
+                <Text style={styles.emptyText}>No meals yet! Tap + to feed me 🐾</Text>
               </TouchableOpacity>
             ) : (
               (['breakfast', 'lunch', 'dinner', 'snack'] as const).map(type => {
@@ -261,7 +245,10 @@ export default function HomeScreen() {
                 if (typeMeals.length === 0) return null;
                 return (
                   <View key={type} style={styles.mealGroup}>
-                    <Text style={styles.mealGroupTitle}>{MEAL_LABELS[type]}</Text>
+                    <View style={styles.mealGroupHeader}>
+                      <Text style={styles.mealGroupIcon}>{MEAL_ICONS[type]}</Text>
+                      <Text style={styles.mealGroupTitle}>{MEAL_LABELS[type]}</Text>
+                    </View>
                     {typeMeals.map(meal => (
                       <View key={meal.id} style={styles.mealItem}>
                         <View style={styles.mealInfo}>
@@ -278,7 +265,7 @@ export default function HomeScreen() {
                           style={styles.deleteBtn}
                           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         >
-                          <Trash2 size={16} color={Colors.textMuted} />
+                          <Trash2 size={15} color={Colors.textMuted} />
                         </TouchableOpacity>
                       </View>
                     ))}
@@ -298,7 +285,7 @@ export default function HomeScreen() {
             activeOpacity={0.85}
             testID="log-meal-fab"
           >
-            <Plus size={26} color={Colors.white} strokeWidth={2.5} />
+            <Plus size={24} color={Colors.white} strokeWidth={3} />
           </TouchableOpacity>
         </Animated.View>
       </SafeAreaView>
@@ -307,41 +294,44 @@ export default function HomeScreen() {
         <Animated.View style={[styles.popupOverlay, { opacity: popupAnim }]}>
           <Pressable style={styles.popupBackdrop} onPress={closeLogPopup} />
           <Animated.View style={[styles.popupContainer, { opacity: popupAnim, transform: [{ scale: popupScaleAnim }] }]}>
+            <Text style={styles.popupTitle}>Log Food</Text>
             <View style={styles.popupGrid}>
               <TouchableOpacity style={styles.popupItem} onPress={() => handleLogOption('/log-meal')} activeOpacity={0.7}>
-                <View style={styles.popupIconWrap}>
-                  <UtensilsCrossed size={24} color={Colors.text} strokeWidth={2} />
+                <View style={[styles.popupIconWrap, { backgroundColor: '#FFF3E0' }]}>
+                  <UtensilsCrossed size={22} color={Colors.secondary} strokeWidth={2} />
                 </View>
                 <Text style={styles.popupItemText}>Log meal</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.popupItem} onPress={() => handleLogOption('/scan-food')} activeOpacity={0.7}>
-                <View style={styles.popupIconWrap}>
-                  <Camera size={24} color={Colors.text} strokeWidth={2} />
+                <View style={[styles.popupIconWrap, { backgroundColor: '#E8F5E9' }]}>
+                  <Camera size={22} color={Colors.success} strokeWidth={2} />
                 </View>
                 <Text style={styles.popupItemText}>Scan food</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.popupItem} onPress={() => handleLogOption('/barcode-scanner')} activeOpacity={0.7}>
-                <View style={styles.popupIconWrap}>
-                  <ScanBarcode size={24} color={Colors.text} strokeWidth={2} />
+                <View style={[styles.popupIconWrap, { backgroundColor: '#E8F1FD' }]}>
+                  <ScanBarcode size={22} color={Colors.fat} strokeWidth={2} />
                 </View>
                 <Text style={styles.popupItemText}>Barcode</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.popupItem} onPress={() => handleLogOption('/log-meal')} activeOpacity={0.7}>
-                <View style={styles.popupIconWrap}>
-                  <Search size={24} color={Colors.text} strokeWidth={2} />
+                <View style={[styles.popupIconWrap, { backgroundColor: '#FFEDEC' }]}>
+                  <Search size={22} color={Colors.protein} strokeWidth={2} />
                 </View>
-                <Text style={styles.popupItemText}>Search food</Text>
+                <Text style={styles.popupItemText}>Search</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
           <TouchableOpacity style={styles.popupCloseBtn} onPress={closeLogPopup} activeOpacity={0.8}>
-            <X size={22} color={Colors.white} strokeWidth={2.5} />
+            <X size={20} color={Colors.white} strokeWidth={3} />
           </TouchableOpacity>
         </Animated.View>
       </Modal>
     </View>
   );
 }
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
@@ -352,7 +342,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingTop: 8,
   },
   loadingContainer: {
@@ -363,226 +353,234 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: 'row' as const,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    marginBottom: 14,
   },
   appName: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800' as const,
     color: Colors.text,
     letterSpacing: -0.5,
   },
   streakBadge: {
     flexDirection: 'row' as const,
-    alignItems: 'center',
+    alignItems: 'center' as const,
     gap: 4,
-    backgroundColor: Colors.white,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: Colors.card,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 2,
+    borderColor: Colors.cardBorder,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
   },
   streakIcon: {
-    fontSize: 16,
+    fontSize: 14,
   },
   streakText: {
-    fontSize: 15,
-    color: Colors.text,
-    fontWeight: '700' as const,
+    fontSize: 14,
+    color: Colors.streakFire,
+    fontWeight: '800' as const,
   },
   weekRow: {
-    marginBottom: 16,
-    marginHorizontal: -20,
+    marginBottom: 12,
+    marginHorizontal: -18,
   },
   weekRowContent: {
-    paddingHorizontal: 20,
-    gap: 4,
+    paddingHorizontal: 18,
+    gap: 6,
   },
   weekDayCol: {
-    alignItems: 'center',
-    width: 44,
+    alignItems: 'center' as const,
+    width: 42,
   },
   weekDayLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.textSecondary,
-    marginBottom: 6,
+    marginBottom: 5,
+    fontWeight: '500' as const,
   },
   weekDayLabelToday: {
     color: Colors.text,
-    fontWeight: '600' as const,
+    fontWeight: '700' as const,
   },
-  weekDayCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  weekDayCircleToday: {
-    borderWidth: 2,
-    borderColor: Colors.todayBorder,
-  },
-  weekDayCircleHasData: {
+  weekDayBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 6,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    backgroundColor: Colors.card,
     borderWidth: 1.5,
+    borderColor: Colors.cardBorder,
+  },
+  weekDayBoxToday: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderBottomColor: 'rgba(43,43,61,0.7)',
+    borderRightColor: 'rgba(43,43,61,0.7)',
+  },
+  weekDayBoxHasData: {
     borderColor: Colors.weekDayActive,
+    borderWidth: 2,
   },
   weekDayDate: {
-    fontSize: 15,
+    fontSize: 14,
     color: Colors.text,
-    fontWeight: '500' as const,
+    fontWeight: '600' as const,
   },
   weekDayDateToday: {
-    fontWeight: '700' as const,
+    color: Colors.white,
+    fontWeight: '800' as const,
   },
   weekDayDateHasData: {
     color: Colors.weekDayActive,
-    fontWeight: '600' as const,
+    fontWeight: '700' as const,
+  },
+  weekDayDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: Colors.weekDayActive,
+    marginTop: 4,
   },
   buddySection: {
-    alignItems: 'center',
-    paddingVertical: 4,
+    alignItems: 'center' as const,
+    paddingVertical: 2,
+    marginBottom: 4,
   },
-  calorieCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 20,
-    padding: 20,
-    marginTop: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+  statsCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: Colors.cardBorder,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+    borderBottomColor: Colors.pixelShadow,
+    borderRightColor: Colors.pixelShadow,
+    padding: 16,
+    marginBottom: 16,
   },
-  calorieCardInner: {
+  statsHeader: {
     flexDirection: 'row' as const,
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    marginBottom: 6,
   },
-  calorieInfo: {
-    flex: 1,
+  statsLabel: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.textSecondary,
+    letterSpacing: 0.5,
   },
-  calorieConsumed: {
+  statsPercent: {
+    fontSize: 13,
+    fontWeight: '800' as const,
+    color: Colors.calRing,
+  },
+  calorieRow: {
     flexDirection: 'row' as const,
+    alignItems: 'baseline' as const,
+    marginBottom: 10,
   },
   calorieBig: {
-    fontSize: 40,
+    fontSize: 36,
     fontWeight: '800' as const,
     color: Colors.text,
   },
   calorieTarget: {
-    fontSize: 18,
+    fontSize: 15,
     color: Colors.textSecondary,
-    fontWeight: '400' as const,
+    fontWeight: '500' as const,
   },
-  calorieLabel: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginTop: 2,
+  statsDivider: {
+    height: 2,
+    backgroundColor: Colors.divider,
+    marginVertical: 14,
+    borderRadius: 1,
   },
   macroRow: {
     flexDirection: 'row' as const,
-    marginTop: 12,
   },
   macroGap: {
-    width: 8,
-  },
-  quickActionsRow: {
-    flexDirection: 'row' as const,
-    gap: 12,
-    marginTop: 16,
-  },
-  quickActionBtn: {
-    flex: 1,
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  quickActionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: Colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  quickActionText: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-    color: Colors.text,
+    width: 10,
   },
   mealsSection: {
-    marginTop: 20,
+    marginBottom: 8,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700' as const,
     color: Colors.text,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   emptyMeals: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
+    backgroundColor: Colors.card,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: Colors.cardBorder,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderBottomColor: Colors.pixelShadow,
+    borderRightColor: Colors.pixelShadow,
     padding: 28,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
+    alignItems: 'center' as const,
+  },
+  emptyIcon: {
+    fontSize: 28,
+    marginBottom: 8,
   },
   emptyText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  mealGroup: {
-    marginBottom: 12,
-  },
-  mealGroupTitle: {
     fontSize: 13,
     color: Colors.textSecondary,
-    fontWeight: '600' as const,
+    fontWeight: '500' as const,
+  },
+  mealGroup: {
+    marginBottom: 10,
+  },
+  mealGroupHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
     marginBottom: 6,
+  },
+  mealGroupIcon: {
+    fontSize: 14,
+  },
+  mealGroupTitle: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: '700' as const,
     textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   mealItem: {
     flexDirection: 'row' as const,
-    alignItems: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
+    alignItems: 'center' as const,
+    backgroundColor: Colors.card,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: Colors.cardBorder,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 5,
   },
   mealInfo: {
     flex: 1,
   },
   mealName: {
-    fontSize: 16,
+    fontSize: 14,
     color: Colors.text,
     fontWeight: '600' as const,
   },
   mealMeta: {
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.textSecondary,
-    marginTop: 3,
+    marginTop: 2,
   },
   deleteBtn: {
     padding: 6,
@@ -593,86 +591,90 @@ const styles = StyleSheet.create({
   fabContainer: {
     position: 'absolute' as const,
     bottom: 16,
-    right: 20,
-    alignItems: 'center',
+    right: 18,
+    alignItems: 'center' as const,
   },
   fab: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 54,
+    height: 54,
+    borderRadius: 14,
     backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+    borderBottomColor: 'rgba(43,43,61,0.6)',
+    borderRightColor: 'rgba(43,43,61,0.6)',
   },
   popupOverlay: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
   },
   popupBackdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
   popupContainer: {
-    width: Dimensions.get('window').width - 56,
+    width: SCREEN_WIDTH - 56,
     maxWidth: 340,
-    backgroundColor: Colors.background,
-    borderRadius: 24,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
-    elevation: 12,
+    backgroundColor: Colors.card,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: Colors.cardBorder,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+    borderBottomColor: Colors.pixelShadow,
+    borderRightColor: Colors.pixelShadow,
+    padding: 18,
+  },
+  popupTitle: {
+    fontSize: 16,
+    fontWeight: '800' as const,
+    color: Colors.text,
+    textAlign: 'center' as const,
+    marginBottom: 14,
   },
   popupGrid: {
     flexDirection: 'row' as const,
     flexWrap: 'wrap' as const,
-    gap: 12,
+    gap: 10,
   },
   popupItem: {
     width: '47%' as any,
-    backgroundColor: Colors.white,
-    borderRadius: 18,
-    paddingVertical: 22,
+    backgroundColor: Colors.background,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: Colors.cardBorder,
+    paddingVertical: 18,
     alignItems: 'center' as const,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
   },
   popupIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: Colors.background,
+    width: 44,
+    height: 44,
+    borderRadius: 8,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   popupItemText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600' as const,
     color: Colors.text,
   },
   popupCloseBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     backgroundColor: Colors.primary,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    marginTop: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    marginTop: 16,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    borderBottomWidth: 3,
+    borderBottomColor: 'rgba(43,43,61,0.6)',
   },
 });

@@ -1,6 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, Text } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import Colors from '@/constants/colors';
 
 interface CalorieRingProps {
@@ -10,66 +9,62 @@ interface CalorieRingProps {
   strokeWidth?: number;
 }
 
-export default function CalorieRing({ consumed, target, size = 120, strokeWidth = 10 }: CalorieRingProps) {
-  const animatedValue = useRef(new Animated.Value(0)).current;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const progress = Math.min(consumed / target, 1.5);
+const TOTAL_SEGMENTS = 18;
+
+export default function CalorieRing({ consumed, target }: CalorieRingProps) {
+  const progress = Math.min(consumed / target, 1);
+  const filledCount = Math.round(progress * TOTAL_SEGMENTS);
+  const isOver = consumed > target;
+  const fillColor = isOver ? Colors.calRingOver : Colors.calRing;
   const remaining = Math.max(0, target - consumed);
 
-  useEffect(() => {
-    Animated.timing(animatedValue, {
-      toValue: progress,
-      duration: 1000,
-      useNativeDriver: false,
-    }).start();
-  }, [progress, animatedValue]);
-
-  const strokeDashoffset = circumference * (1 - Math.min(progress, 1));
-  const isOver = consumed > target;
-  const ringColor = isOver ? Colors.accent : Colors.calRing;
-
   return (
-    <View style={[styles.container, { width: size, height: size }]}>
-      <Svg width={size} height={size}>
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={Colors.calRingBg}
-          strokeWidth={strokeWidth}
-          fill="none"
-        />
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={ringColor}
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeDasharray={`${circumference}`}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
-      </Svg>
-      <View style={styles.textContainer}>
-        <Text style={styles.fireIcon}>🔥</Text>
+    <View style={styles.container}>
+      <View style={styles.barBorder}>
+        <View style={styles.barInner}>
+          {Array.from({ length: TOTAL_SEGMENTS }).map((_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.segment,
+                { backgroundColor: i < filledCount ? fillColor : Colors.progressBg },
+              ]}
+            />
+          ))}
+        </View>
       </View>
+      <Text style={styles.remainingText}>
+        {isOver ? `${consumed - target} over!` : `${remaining} cal left`}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: '100%' as any,
   },
-  textContainer: {
-    position: 'absolute' as const,
-    alignItems: 'center',
+  barBorder: {
+    borderWidth: 2,
+    borderColor: Colors.cardBorder,
+    borderRadius: 4,
+    padding: 3,
+    backgroundColor: Colors.progressBg,
   },
-  fireIcon: {
-    fontSize: 28,
+  barInner: {
+    flexDirection: 'row' as const,
+    gap: 2,
+  },
+  segment: {
+    flex: 1,
+    height: 22,
+    borderRadius: 2,
+  },
+  remainingText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 6,
+    textAlign: 'right' as const,
+    fontWeight: '500' as const,
   },
 });

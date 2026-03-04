@@ -8,13 +8,13 @@ interface SpeechBubbleProps {
 
 export default function SpeechBubble({ message }: SpeechBubbleProps) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
     fadeAnim.setValue(0);
-    scaleAnim.setValue(0.8);
+    scaleAnim.setValue(0.9);
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
       Animated.spring(scaleAnim, { toValue: 1, friction: 8, useNativeDriver: true }),
     ]).start();
   }, [message, fadeAnim, scaleAnim]);
@@ -22,46 +22,84 @@ export default function SpeechBubble({ message }: SpeechBubbleProps) {
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
       <View style={styles.bubble}>
+        <View style={styles.cornerTL} />
+        <View style={styles.cornerTR} />
+        <View style={styles.cornerBL} />
+        <View style={styles.cornerBR} />
         <Text style={styles.text}>{message}</Text>
       </View>
-      <View style={styles.tail} />
+      <View style={styles.tailOuter} />
+      <View style={styles.tailInner} />
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'center' as const,
+    marginBottom: 4,
   },
   bubble: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
+    backgroundColor: Colors.card,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: Colors.cardBorder,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
     maxWidth: 260,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    position: 'relative' as const,
+  },
+  cornerTL: {
+    position: 'absolute' as const,
+    top: -1,
+    left: -1,
+    width: 4,
+    height: 4,
+    backgroundColor: Colors.cardBorder,
+  },
+  cornerTR: {
+    position: 'absolute' as const,
+    top: -1,
+    right: -1,
+    width: 4,
+    height: 4,
+    backgroundColor: Colors.cardBorder,
+  },
+  cornerBL: {
+    position: 'absolute' as const,
+    bottom: -1,
+    left: -1,
+    width: 4,
+    height: 4,
+    backgroundColor: Colors.cardBorder,
+  },
+  cornerBR: {
+    position: 'absolute' as const,
+    bottom: -1,
+    right: -1,
+    width: 4,
+    height: 4,
+    backgroundColor: Colors.cardBorder,
   },
   text: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.text,
     textAlign: 'center' as const,
-    lineHeight: 20,
+    lineHeight: 19,
+    fontWeight: '500' as const,
   },
-  tail: {
+  tailOuter: {
     width: 12,
     height: 12,
-    backgroundColor: Colors.white,
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: Colors.cardBorder,
+    backgroundColor: Colors.cardBorder,
     transform: [{ rotate: '45deg' }],
     marginTop: -7,
+  },
+  tailInner: {
+    width: 8,
+    height: 8,
+    backgroundColor: Colors.card,
+    transform: [{ rotate: '45deg' }],
+    marginTop: -11,
   },
 });
