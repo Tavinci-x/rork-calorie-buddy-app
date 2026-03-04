@@ -82,27 +82,29 @@ CRITICAL REQUIREMENTS:
 - NO realistic rendering — this must look like a 16-bit retro pixel art game character
 - The pixel art cat should be immediately recognizable as the same cat from the photo`;
 
+      const imageBytes = Buffer.from(input.imageBase64, "base64");
+      const formData = new FormData();
+      formData.append(
+        "image",
+        new Blob([imageBytes], { type: "image/png" }),
+        "cat.png"
+      );
+      formData.append("model", "gpt-image-1");
+      formData.append("prompt", prompt);
+      formData.append("size", "1024x1024");
+      formData.append("quality", "medium");
+      formData.append("background", "transparent");
+
+      console.log("Sending multipart/form-data request to OpenAI images/edits...");
+
       const response = await fetch(
         "https://api.openai.com/v1/images/edits",
         {
           method: "POST",
           headers: {
             Authorization: `Bearer ${openaiKey}`,
-            "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            model: "gpt-image-1",
-            images: [
-              {
-                image_url: `data:image/jpeg;base64,${input.imageBase64}`,
-              },
-            ],
-            prompt,
-            size: "1024x1024",
-            quality: "medium",
-            output_format: "png",
-            background: "transparent",
-          }),
+          body: formData,
         }
       );
 
