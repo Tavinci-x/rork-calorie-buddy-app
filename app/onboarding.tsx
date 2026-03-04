@@ -550,7 +550,7 @@ export default function OnboardingScreen() {
           if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (err) {
           console.log('Cartoon conversion error:', err);
-          setConvertError("Oops! Our pixel art machine is taking a cat nap. Try again or skip.");
+          setConvertError(`Error: ${err instanceof Error ? err.message : JSON.stringify(err)}`);
         } finally {
           setIsConverting(false);
         }
