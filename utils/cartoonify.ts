@@ -1,3 +1,5 @@
+import { trpcClient } from '@/lib/trpc';
+
 export const LOADING_MESSAGES = [
   "Analyzing your cat's fluffiness...",
   "Counting whiskers...",
@@ -10,53 +12,22 @@ export const LOADING_MESSAGES = [
 
 export const MAX_GENERATION_ATTEMPTS = 3;
 
-const getBaseUrl = () => {
-  const url = process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
-  if (url) return url;
-
-  const projectId = process.env.EXPO_PUBLIC_PROJECT_ID;
-  if (projectId) {
-    return `https://rork.app/api/project/${projectId}`;
-  }
-
-  return "https://localhost:0";
-};
-
 export async function convertToCartoon(base64Image: string): Promise<string> {
-  console.log('[cartoonify] Starting conversion via backend OpenAI API');
+  console.log('[cartoonify] Starting conversion via tRPC backend');
 
   const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
   console.log('[cartoonify] Cleaned base64 length:', cleanBase64.length);
 
   try {
-    const url = `${getBaseUrl()}/api/generate-mascot`;
-    console.log('[cartoonify] POST to:', url);
+    console.log('[cartoonify] Calling catMascot.generate via tRPC...');
+    const result = await trpcClient.catMascot.generate.mutate({ imageBase64: cleanBase64 });
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ imageBase64: cleanBase64 }),
-    });
+    console.log('[cartoonify] Response received, has imageBase64:', !!result?.imageBase64);
+    console.log('[cartoonify] imageBase64 length:', result?.imageBase64?.length ?? 0);
 
-    console.log('[cartoonify] Response status:', response.status);
-    console.log('[cartoonify] Response ok:', response.ok);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log('[cartoonify] API error response:', errorText.slice(0, 500));
-      throw new Error(`Image generation failed (${response.status}): ${errorText.slice(0, 200)}`);
-    }
-
-    const data = await response.json();
-    console.log('[cartoonify] Response keys:', Object.keys(data));
-    console.log('[cartoonify] Has imageBase64:', !!data?.imageBase64);
-    console.log('[cartoonify] imageBase64 length:', data?.imageBase64?.length ?? 0);
-
-    const b64 = data?.imageBase64;
+    const b64 = result?.imageBase64;
     if (!b64 || b64.length < 100) {
-      console.log('[cartoonify] Invalid response data:', JSON.stringify(data).slice(0, 500));
+      console.log('[cartoonify] Invalid response data');
       throw new Error('Received empty or invalid image data from API');
     }
 
