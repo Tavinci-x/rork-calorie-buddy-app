@@ -82,10 +82,13 @@ CRITICAL REQUIREMENTS:
       try {
         const cleanBase64 = input.imageBase64.replace(/^data:image\/\w+;base64,/, "");
         const imageBuffer = Buffer.from(cleanBase64, "base64");
-        const imageBlob = new Blob([imageBuffer], { type: "image/png" });
+        const mimeType = cleanBase64.startsWith("/9j/") ? "image/jpeg"
+          : cleanBase64.startsWith("iVBOR") ? "image/png"
+          : "image/jpeg";
+        const imageBlob = new Blob([imageBuffer], { type: mimeType });
 
         const formData = new FormData();
-        formData.append("image[]", imageBlob, "cat.png");
+        formData.append("image", imageBlob, mimeType === "image/png" ? "cat.png" : "cat.jpg");
         formData.append("model", "gpt-image-1");
         formData.append("prompt", prompt);
         formData.append("size", "1024x1024");
