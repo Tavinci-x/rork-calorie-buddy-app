@@ -8,13 +8,15 @@ export const trpc = createTRPCReact<AppRouter>();
 
 const getBaseUrl = () => {
   const url = process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
+  if (url) return url;
 
-  if (!url) {
-    console.warn("EXPO_PUBLIC_RORK_API_BASE_URL is not set");
-    return "";
+  const projectId = process.env.EXPO_PUBLIC_PROJECT_ID;
+  if (projectId) {
+    return `https://rork.app/api/project/${projectId}`;
   }
 
-  return url;
+  console.warn("No backend URL configured: EXPO_PUBLIC_RORK_API_BASE_URL and EXPO_PUBLIC_PROJECT_ID are both missing");
+  return "";
 };
 
 export const trpcClient = trpc.createClient({
