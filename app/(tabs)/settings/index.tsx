@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { User, Target, RotateCcw, ChevronRight, TrendingDown, TrendingUp, Camera, ScanBarcode, Heart, Cat, LogOut } from 'lucide-react-native';
+import { User, Target, RotateCcw, ChevronRight, TrendingDown, TrendingUp, Camera, ScanBarcode, Heart, Cat } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import BuddyMascot from '@/components/BuddyMascot';
@@ -11,12 +11,10 @@ import { calculateDailyTarget } from '@/utils/calculations';
 import { MAX_GENERATION_ATTEMPTS, convertToCartoon } from '@/utils/cartoonify';
 import { type ActivityLevel, ACTIVITY_LEVELS } from '@/types';
 import { useRouter } from 'expo-router';
-import { useAuth } from '@/providers/AuthProvider';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { profile, updateProfile, buddyStage, resetAllData } = useApp();
-  const { user, signOut, isSigningOut } = useAuth();
 
   const [editSection, setEditSection] = useState<string | null>(null);
 
@@ -73,29 +71,6 @@ export default function SettingsScreen() {
     );
   }, [router, resetAllData]);
 
-  const handleSignOut = useCallback(() => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await signOut();
-              if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              router.replace('/auth' as any);
-            } catch (e) {
-              console.log('Sign out error:', e);
-              Alert.alert('Error', 'Failed to sign out. Please try again.');
-            }
-          },
-        },
-      ]
-    );
-  }, [signOut, router]);
 
   const handleActivityChange = useCallback((level: ActivityLevel) => {
     const newTarget = calculateDailyTarget({ ...profile, activityLevel: level });
@@ -369,32 +344,8 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.sectionHeader}>Account</Text>
+          <Text style={styles.sectionHeader}>Data</Text>
           <View style={styles.section}>
-            {user && (
-              <>
-                <View style={styles.menuItem}>
-                  <View style={styles.menuIcon}>
-                    <User size={18} color={Colors.textSecondary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.menuLabel}>{user.email}</Text>
-                    <Text style={styles.attemptsHint}>Signed in</Text>
-                  </View>
-                </View>
-                <View style={styles.menuDivider} />
-              </>
-            )}
-            <TouchableOpacity style={styles.menuItem} onPress={handleSignOut} disabled={isSigningOut}>
-              <View style={styles.menuIcon}>
-                <LogOut size={18} color={Colors.accent} />
-              </View>
-              <Text style={[styles.menuLabel, { color: Colors.accent }]}>
-                {isSigningOut ? 'Signing Out...' : 'Sign Out'}
-              </Text>
-              <ChevronRight size={16} color={Colors.textMuted} />
-            </TouchableOpacity>
-            <View style={styles.menuDivider} />
             <TouchableOpacity style={styles.menuItem} onPress={handleResetProgress}>
               <View style={styles.menuIcon}>
                 <RotateCcw size={18} color={Colors.accent} />

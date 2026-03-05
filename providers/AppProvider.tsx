@@ -17,7 +17,7 @@ import { useAuth } from '@/providers/AuthProvider';
 export const [AppProvider, useApp] = createContextHook(() => {
   const queryClient = useQueryClient();
   const { user, isAuthenticated } = useAuth();
-  const userId = user?.id ?? null;
+  const userId = (user as { id?: string } | null)?.id ?? null;
 
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [meals, setMeals] = useState<MealEntry[]>([]);
