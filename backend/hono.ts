@@ -65,14 +65,15 @@ CRITICAL REQUIREMENTS:
     const mimeType = isPng ? "image/png" : "image/jpeg";
     const fileName = isPng ? "cat.png" : "cat.jpg";
 
-    const file = new File([imageBytes], fileName, { type: mimeType });
+    const blob = new Blob([imageBytes], { type: mimeType });
 
     const formData = new FormData();
-    formData.append("image", file);
+    formData.append("image", blob, fileName);
     formData.append("model", "gpt-image-1");
     formData.append("prompt", prompt);
     formData.append("size", "1024x1024");
     formData.append("quality", "medium");
+    formData.append("response_format", "b64_json");
 
     console.log("[generate-mascot] Calling OpenAI images/edits with model gpt-image-1...");
 
@@ -110,7 +111,12 @@ CRITICAL REQUIREMENTS:
         console.log("[generate-mascot] Got URL, downloading image...");
         const imgResponse = await fetch(url);
         const imgBuffer = await imgResponse.arrayBuffer();
-        b64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
+        const imgBytes = new Uint8Array(imgBuffer);
+        let imgBinary = "";
+        for (let i = 0; i < imgBytes.length; i++) {
+          imgBinary += String.fromCharCode(imgBytes[i]);
+        }
+        b64 = btoa(imgBinary);
       } else {
         console.log("[generate-mascot] No image data in response:", JSON.stringify(data).slice(0, 300));
         return c.json({ error: "No image data in OpenAI response" }, 500);
