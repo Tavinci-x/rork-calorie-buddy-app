@@ -1,13 +1,24 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import createContextHook from '@nkzw/create-context-hook';
-import { type UserProfile, type MealEntry, type WeightEntry, type BuddyMood, type BuddyStage, DEFAULT_PROFILE } from '@/types';
+import { type UserProfile, type MealEntry, type WeightEntry, DEFAULT_PROFILE } from '@/types';
 import { loadProfile, saveProfile, loadMeals, saveMeals, loadWeights, saveWeights, loadLastOpen, saveLastOpen, loadQuickMeals, saveQuickMeals, type QuickMeal } from '@/utils/storage';
+import {
+  loadProfileFromSupabase, saveProfileToSupabase,
+  loadMealsFromSupabase, saveMealToSupabase, deleteMealFromSupabase,
+  loadWeightsFromSupabase, saveWeightToSupabase,
+  loadQuickMealsFromSupabase, saveQuickMealsToSupabase,
+  clearAllSupabaseData,
+} from '@/utils/supabase-storage';
 import { calculateProgress, getBuddyStage, getBuddyMood, calculateStreak } from '@/utils/calculations';
 import { getTodayDate, generateId } from '@/utils/helpers';
+import { useAuth } from '@/providers/AuthProvider';
 
 export const [AppProvider, useApp] = createContextHook(() => {
   const queryClient = useQueryClient();
+  const { user, isAuthenticated } = useAuth();
+  const userId = user?.id ?? null;
+
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [meals, setMeals] = useState<MealEntry[]>([]);
   const [weights, setWeights] = useState<WeightEntry[]>([]);
@@ -16,23 +27,47 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const [isReady, setIsReady] = useState<boolean>(false);
 
   const profileQuery = useQuery({
-    queryKey: ['profile'],
-    queryFn: loadProfile,
+    queryKey: ['profile', userId],
+    queryFn: async () => {
+      if (userId) {
+        return loadProfileFromSupabase(userId);
+      }
+      return loadProfile();
+    },
+    enabled: isAuthenticated ? !!userId : true,
   });
 
   const mealsQuery = useQuery({
-    queryKey: ['meals'],
-    queryFn: loadMeals,
+    queryKey: ['meals', userId],
+    queryFn: async () => {
+      if (userId) {
+        return loadMealsFromSupabase(userId);
+      }
+      return loadMeals();
+    },
+    enabled: isAuthenticated ? !!userId : true,
   });
 
   const weightsQuery = useQuery({
-    queryKey: ['weights'],
-    queryFn: loadWeights,
+    queryKey: ['weights', userId],
+    queryFn: async () => {
+      if (userId) {
+        return loadWeightsFromSupabase(userId);
+      }
+      return loadWeights();
+    },
+    enabled: isAuthenticated ? !!userId : true,
   });
 
   const quickMealsQuery = useQuery({
-    queryKey: ['quickMeals'],
-    queryFn: loadQuickMeals,
+    queryKey: ['quickMeals', userId],
+    queryFn: async () => {
+      if (userId) {
+        return loadQuickMealsFromSupabase(userId);
+      }
+      return loadQuickMeals();
+    },
+    enabled: isAuthenticated ? !!userId : true,
   });
 
   const lastOpenQuery = useQuery({
@@ -73,39 +108,68 @@ export const [AppProvider, useApp] = createContextHook(() => {
 
   const profileMutation = useMutation({
     mutationFn: async (newProfile: UserProfile) => {
+      if (userId) {
+        await saveProfileToSupabase(userId, newProfile);
+      }
       await saveProfile(newProfile);
       return newProfile;
     },
     onSuccess: (data) => {
       setProfile(data);
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['profile', userId] });
     },
   });
 
-  const mealMutation = useMutation({
-    mutationFn: async (newMeals: MealEntry[]) => {
-      await saveMeals(newMeals);
-      return newMeals;
+  const mealAddMutation = useMutation({
+    mutationFn: async (meal: MealEntry) => {
+      if (userId) {
+        await saveMealToSupabase(userId, meal);
+      }
+      const updated = [...meals, meal];
+      await saveMeals(updated);
+      return { meal, updated };
     },
-    onSuccess: (data) => {
-      setMeals(data);
-      queryClient.invalidateQueries({ queryKey: ['meals'] });
+    onSuccess: ({ updated }) => {
+      setMeals(updated);
+      queryClient.invalidateQueries({ queryKey: ['meals', userId] });
+    },
+  });
+
+  const mealDeleteMutation = useMutation({
+    mutationFn: async (mealId: string) => {
+      if (userId) {
+        await deleteMealFromSupabase(mealId);
+      }
+      const updated = meals.filter(m => m.id !== mealId);
+      await saveMeals(updated);
+      return updated;
+    },
+    onSuccess: (updated) => {
+      setMeals(updated);
+      queryClient.invalidateQueries({ queryKey: ['meals', userId] });
     },
   });
 
   const weightMutation = useMutation({
-    mutationFn: async (newWeights: WeightEntry[]) => {
-      await saveWeights(newWeights);
-      return newWeights;
+    mutationFn: async (entry: WeightEntry) => {
+      if (userId) {
+        await saveWeightToSupabase(userId, entry);
+      }
+      const updated = [...weights, entry];
+      await saveWeights(updated);
+      return { entry, updated };
     },
-    onSuccess: (data) => {
-      setWeights(data);
-      queryClient.invalidateQueries({ queryKey: ['weights'] });
+    onSuccess: ({ updated }) => {
+      setWeights(updated);
+      queryClient.invalidateQueries({ queryKey: ['weights', userId] });
     },
   });
 
   const quickMealMutation = useMutation({
     mutationFn: async (newQuickMeals: QuickMeal[]) => {
+      if (userId) {
+        await saveQuickMealsToSupabase(userId, newQuickMeals);
+      }
       await saveQuickMeals(newQuickMeals);
       return newQuickMeals;
     },
@@ -114,20 +178,22 @@ export const [AppProvider, useApp] = createContextHook(() => {
     },
   });
 
+  const { mutate: mutateProfile } = profileMutation;
   const updateProfile = useCallback((updates: Partial<UserProfile>) => {
     const updated = { ...profile, ...updates };
     setProfile(updated);
-    profileMutation.mutate(updated);
-  }, [profile, profileMutation]);
+    mutateProfile(updated);
+  }, [profile, mutateProfile]);
 
+  const { mutate: mutateAddMeal } = mealAddMutation;
+  const { mutate: mutateQuickMeal } = quickMealMutation;
   const addMeal = useCallback((meal: Omit<MealEntry, 'id' | 'timestamp'>) => {
     const newMeal: MealEntry = {
       ...meal,
       id: generateId(),
       timestamp: new Date().toISOString(),
     };
-    const updated = [...meals, newMeal];
-    mealMutation.mutate(updated);
+    mutateAddMeal(newMeal);
 
     const existing = quickMeals.find(q => q.name.toLowerCase() === meal.name.toLowerCase());
     if (existing) {
@@ -136,7 +202,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
           ? { ...q, count: q.count + 1 }
           : q
       );
-      quickMealMutation.mutate(updatedQuick);
+      mutateQuickMeal(updatedQuick);
     } else {
       const newQuick: QuickMeal = {
         name: meal.name,
@@ -147,17 +213,18 @@ export const [AppProvider, useApp] = createContextHook(() => {
         mealType: meal.mealType,
         count: 1,
       };
-      quickMealMutation.mutate([...quickMeals, newQuick].slice(-20));
+      mutateQuickMeal([...quickMeals, newQuick].slice(-20));
     }
 
     return newMeal;
-  }, [meals, quickMeals, mealMutation, quickMealMutation]);
+  }, [quickMeals, mutateAddMeal, mutateQuickMeal]);
 
+  const { mutate: mutateDeleteMeal } = mealDeleteMutation;
   const deleteMeal = useCallback((mealId: string) => {
-    const updated = meals.filter(m => m.id !== mealId);
-    mealMutation.mutate(updated);
-  }, [meals, mealMutation]);
+    mutateDeleteMeal(mealId);
+  }, [mutateDeleteMeal]);
 
+  const { mutate: mutateWeight } = weightMutation;
   const addWeight = useCallback((weightKg: number, date?: string) => {
     const entry: WeightEntry = {
       id: generateId(),
@@ -165,12 +232,23 @@ export const [AppProvider, useApp] = createContextHook(() => {
       weightKg,
       timestamp: new Date().toISOString(),
     };
-    const updated = [...weights, entry];
-    weightMutation.mutate(updated);
-
+    mutateWeight(entry);
     updateProfile({ currentWeightKg: weightKg });
     return entry;
-  }, [weights, weightMutation, updateProfile]);
+  }, [mutateWeight, updateProfile]);
+
+  const resetAllData = useCallback(async () => {
+    if (userId) {
+      await clearAllSupabaseData(userId);
+    }
+    const { clearAllData } = await import('@/utils/storage');
+    await clearAllData();
+    setProfile(DEFAULT_PROFILE);
+    setMeals([]);
+    setWeights([]);
+    setQuickMeals([]);
+    queryClient.invalidateQueries();
+  }, [userId, queryClient]);
 
   const todayMeals = useMemo(() => {
     const today = getTodayDate();
@@ -235,5 +313,6 @@ export const [AppProvider, useApp] = createContextHook(() => {
     buddyMood,
     topQuickMeals,
     isReady,
+    resetAllData,
   };
 });

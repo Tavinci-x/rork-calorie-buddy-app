@@ -1,6 +1,7 @@
 import React, { useMemo, useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Platform, ActivityIndicator, Modal, Pressable, Dimensions } from 'react-native';
 import { useRouter, Redirect } from 'expo-router';
+import { useAuth } from '@/providers/AuthProvider';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Trash2, Camera, ScanBarcode, X, Search, UtensilsCrossed } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -49,6 +50,7 @@ const MEAL_LABELS: Record<MealType, string> = {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const {
     profile, todayMeals, todayCalories, todayProtein, todayCarbs, todayFat,
     buddyStage, buddyMood, streak, deleteMeal, isReady, mealsByDate,
@@ -129,12 +131,16 @@ export default function HomeScreen() {
   const fatTarget = Math.round(profile.dailyCalorieTarget * 0.25 / 9);
   const calPercent = profile.dailyCalorieTarget > 0 ? Math.min(Math.round((todayCalories / profile.dailyCalorieTarget) * 100), 999) : 0;
 
-  if (!isReady) {
+  if (authLoading || !isReady) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.text} />
       </View>
     );
+  }
+
+  if (!isAuthenticated) {
+    return <Redirect href={"/auth" as any} />;
   }
 
   if (!profile.onboardingComplete) {
