@@ -10,16 +10,28 @@ export const LOADING_MESSAGES = [
 
 export const MAX_GENERATION_ATTEMPTS = 3;
 
+function getBackendUrl(): string {
+  const url = process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
+  if (url) return url;
+
+  const projectId = process.env.EXPO_PUBLIC_PROJECT_ID;
+  if (projectId) {
+    return `https://rork.app/api/project/${projectId}`;
+  }
+
+  return '';
+}
+
 export async function convertToCartoon(base64Image: string): Promise<string> {
   console.log('[cartoonify] Starting conversion via backend API, base64 length:', base64Image.length);
 
   const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
-  const baseUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL || '';
+  const baseUrl = getBackendUrl();
 
   console.log('[cartoonify] Using backend URL:', baseUrl);
 
   if (!baseUrl) {
-    throw new Error('Backend URL is not configured. EXPO_PUBLIC_RORK_API_BASE_URL is missing.');
+    throw new Error('Backend URL is not configured.');
   }
 
   try {
