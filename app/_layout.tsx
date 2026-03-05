@@ -5,6 +5,7 @@ import React, { useEffect } from "react";
 import { View } from "react-native";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { AppProvider } from "@/providers/AppProvider";
+import { trpc, trpcClient } from "@/lib/trpc";
 
 try {
   SplashScreen.preventAutoHideAsync();
@@ -37,14 +38,16 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <View style={{ flex: 1 }}>
-        <AuthProvider>
-          <AppProvider>
-            <RootLayoutNav />
-          </AppProvider>
-        </AuthProvider>
-      </View>
-    </QueryClientProvider>
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <View style={{ flex: 1 }}>
+          <AuthProvider>
+            <AppProvider>
+              <RootLayoutNav />
+            </AppProvider>
+          </AuthProvider>
+        </View>
+      </QueryClientProvider>
+    </trpc.Provider>
   );
 }

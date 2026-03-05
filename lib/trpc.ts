@@ -8,14 +8,20 @@ export const trpc = createTRPCReact<AppRouter>();
 
 const getBaseUrl = () => {
   const url = process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
-  if (url) return url;
+  if (url) {
+    console.log('[trpc] Using RORK_API_BASE_URL:', url);
+    return url;
+  }
 
   const projectId = process.env.EXPO_PUBLIC_PROJECT_ID;
   if (projectId) {
-    return `https://rork.app/api/project/${projectId}`;
+    const fallback = `https://dev-${projectId}.rorktest.dev`;
+    console.log('[trpc] Using fallback URL:', fallback);
+    return fallback;
   }
 
-  return "https://localhost:0";
+  console.warn('[trpc] No backend URL configured, using hardcoded fallback');
+  return "https://dev-8f96p27xi3u53u85bgjf7.rorktest.dev";
 };
 
 export const trpcClient = trpc.createClient({
