@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.rork.calorie-buddy-app-hzj9jmt"
+      "bundleIdentifier": "com.meowcal.app"
     },
     "android": {
       "adaptiveIcon": {
