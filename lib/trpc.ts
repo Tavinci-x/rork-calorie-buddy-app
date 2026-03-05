@@ -15,8 +15,7 @@ const getBaseUrl = () => {
     return `https://rork.app/api/project/${projectId}`;
   }
 
-  console.warn("No backend URL configured: EXPO_PUBLIC_RORK_API_BASE_URL and EXPO_PUBLIC_PROJECT_ID are both missing");
-  return "";
+  return "https://localhost:0";
 };
 
 export const trpcClient = trpc.createClient({
@@ -24,6 +23,17 @@ export const trpcClient = trpc.createClient({
     httpLink({
       url: `${getBaseUrl()}/api/trpc`,
       transformer: superjson,
+      fetch: async (url, options) => {
+        try {
+          return await fetch(url, options);
+        } catch (e) {
+          console.log('[trpc] fetch failed (backend may not be deployed):', e);
+          return new Response(JSON.stringify({ error: 'Backend not available' }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+      },
     }),
   ],
 });
