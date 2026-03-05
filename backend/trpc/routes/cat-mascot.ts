@@ -80,27 +80,29 @@ CRITICAL REQUIREMENTS:
 - The pixel art cat should be immediately recognizable as the same cat from the photo`;
 
       try {
+        const cleanBase64 = input.imageBase64.replace(/^data:image\/\w+;base64,/, "");
+        const imageBuffer = Buffer.from(cleanBase64, "base64");
+        const imageBlob = new Blob([imageBuffer], { type: "image/png" });
+
+        const formData = new FormData();
+        formData.append("image[]", imageBlob, "cat.png");
+        formData.append("model", "gpt-image-1");
+        formData.append("prompt", prompt);
+        formData.append("size", "1024x1024");
+        formData.append("quality", "medium");
+        formData.append("background", "transparent");
+        formData.append("output_format", "png");
+
+        console.log("[cat-mascot] Sending multipart/form-data request to OpenAI...");
+
         const response = await fetch(
           "https://api.openai.com/v1/images/edits",
           {
             method: "POST",
             headers: {
               Authorization: `Bearer ${openaiKey}`,
-              "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              model: "gpt-image-1",
-              images: [
-                {
-                  image_url: `data:image/jpeg;base64,${input.imageBase64}`,
-                },
-              ],
-              prompt,
-              size: "1024x1024",
-              quality: "medium",
-              output_format: "png",
-              background: "transparent",
-            }),
+            body: formData,
           }
         );
 
