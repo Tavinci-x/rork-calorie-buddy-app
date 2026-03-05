@@ -34,32 +34,53 @@ export async function convertToCartoon(base64Image: string): Promise<string> {
 
   const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
 
+  const toolkitUrl = process.env.EXPO_PUBLIC_TOOLKIT_URL;
+  if (!toolkitUrl) {
+    throw new Error('EXPO_PUBLIC_TOOLKIT_URL is not configured');
+  }
+
+  const editUrl = `${toolkitUrl}/images/edit/`;
+  console.log('[cartoonify] Using toolkit URL:', editUrl);
+
   try {
-    const response = await fetch('https://toolkit.rork.com/images/edit/', {
+    const requestBody = JSON.stringify({
+      prompt: PIXEL_ART_PROMPT,
+      images: [{ type: 'image', image: cleanBase64 }],
+      aspectRatio: '1:1',
+    });
+    console.log('[cartoonify] Request body length:', requestBody.length);
+
+    const response = await fetch(editUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        prompt: PIXEL_ART_PROMPT,
-        images: [{ type: 'image', image: cleanBase64 }],
-        aspectRatio: '1:1',
-      }),
+      body: requestBody,
     });
 
     console.log('[cartoonify] Response status:', response.status);
+    console.log('[cartoonify] Response content-type:', response.headers.get('content-type'));
+
+    const rawText = await response.text();
+    console.log('[cartoonify] Raw response (first 300):', rawText.slice(0, 300));
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.log('[cartoonify] API error:', response.status, errorText);
-      throw new Error(`Image generation failed (${response.status}): ${errorText.slice(0, 200)}`);
+      console.log('[cartoonify] API error:', response.status, rawText.slice(0, 500));
+      throw new Error(`Image generation failed (${response.status}): ${rawText.slice(0, 200)}`);
     }
 
-    const data = await response.json();
+    let data: any;
+    try {
+      data = JSON.parse(rawText);
+    } catch (parseErr: any) {
+      console.log('[cartoonify] JSON parse failed. Raw text (first 500):', rawText.slice(0, 500));
+      throw new Error(`Response is not valid JSON: ${rawText.slice(0, 200)}`);
+    }
+
     console.log('[cartoonify] Got response, mimeType:', data?.image?.mimeType);
 
     if (!data?.image?.base64Data) {
-      console.log('[cartoonify] Unexpected response:', JSON.stringify(data).slice(0, 300));
+      console.log('[cartoonify] Unexpected response shape:', JSON.stringify(data).slice(0, 300));
       throw new Error('No image data in response');
     }
 
