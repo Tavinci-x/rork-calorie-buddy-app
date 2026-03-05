@@ -15,11 +15,15 @@ export async function convertToCartoon(base64Image: string): Promise<string> {
   const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
 
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-  if (!supabaseUrl) throw new Error('EXPO_PUBLIC_SUPABASE_URL is not set');
+  const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) throw new Error('Supabase env vars not set');
 
   const response = await fetch(`${supabaseUrl}/functions/v1/swift-action`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${supabaseAnonKey}`,
+    },
     body: JSON.stringify({ imageBase64: cleanBase64 }),
   });
 
