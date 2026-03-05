@@ -8,8 +8,7 @@ import Colors from '@/constants/colors';
 import BuddyMascot from '@/components/BuddyMascot';
 import { useApp } from '@/providers/AppProvider';
 import { calculateDailyTarget } from '@/utils/calculations';
-import { MAX_GENERATION_ATTEMPTS } from '@/utils/cartoonify';
-import { trpc } from '@/lib/trpc';
+import { MAX_GENERATION_ATTEMPTS, convertToCartoon } from '@/utils/cartoonify';
 import { type ActivityLevel, ACTIVITY_LEVELS } from '@/types';
 import { clearAllData } from '@/utils/storage';
 import { useRouter } from 'expo-router';
@@ -17,7 +16,7 @@ import { useRouter } from 'expo-router';
 export default function SettingsScreen() {
   const router = useRouter();
   const { profile, updateProfile, buddyStage } = useApp();
-  const generateMascot = trpc.catMascot.generate.useMutation();
+
   const [editSection, setEditSection] = useState<string | null>(null);
 
   const [age, setAge] = useState<string>(profile.age.toString());
@@ -270,8 +269,7 @@ export default function SettingsScreen() {
                           reader.readAsDataURL(blob);
                         });
                       }
-                      const genResult = await generateMascot.mutateAsync({ imageBase64 });
-                      const base64 = genResult.imageBase64;
+                      const base64 = await convertToCartoon(imageBase64);
                       updateProfile({
                         buddyImageBase64: base64,
                         mascotGenerationCount: (profile.mascotGenerationCount ?? 0) + 1,
