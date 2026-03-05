@@ -23,7 +23,7 @@ export async function convertToCartoon(base64Image: string): Promise<string> {
   }
 
   try {
-    const url = `${baseUrl}/api/generate-mascot`;
+    const url = `${baseUrl}/generate-mascot`;
     console.log('[cartoonify] Fetching:', url);
 
     const response = await fetch(url, {
