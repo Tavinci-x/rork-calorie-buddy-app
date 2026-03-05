@@ -41,4 +41,13 @@
       "typedRoutes": true
     }
   }
+  
+  "ios": {
+"supportsTablet": false,
+"bundleIdentifier": "com.meowcal.app",
+"infoPlist": {
+  "NSCameraUsageDescription": "MeowCal uses the camera to scan food barcodes and take photos of meals",
+  "NSPhotoLibraryUsageDescription": "MeowCal needs access to your photo library to upload your cat's photo for mascot generation"
+}
+}
 }
