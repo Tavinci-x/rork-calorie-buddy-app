@@ -1,5 +1,3 @@
-import { trpcClient } from '@/lib/trpc';
-
 export const LOADING_MESSAGES = [
   "Analyzing your cat's fluffiness...",
   "Counting whiskers...",
@@ -13,29 +11,29 @@ export const LOADING_MESSAGES = [
 export const MAX_GENERATION_ATTEMPTS = 3;
 
 export async function convertToCartoon(base64Image: string): Promise<string> {
-  console.log('[cartoonify] Starting conversion via tRPC backend');
-
+  console.log('[cartoonify] Starting conversion via Supabase Edge Function');
   const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
-  console.log('[cartoonify] Cleaned base64 length:', cleanBase64.length);
 
-  try {
-    console.log('[cartoonify] Calling catMascot.generate via tRPC...');
-    const result = await trpcClient.catMascot.generate.mutate({ imageBase64: cleanBase64 });
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) throw new Error('EXPO_PUBLIC_SUPABASE_URL is not set');
 
-    console.log('[cartoonify] Response received, has imageBase64:', !!result?.imageBase64);
-    console.log('[cartoonify] imageBase64 length:', result?.imageBase64?.length ?? 0);
+  const response = await fetch(`${supabaseUrl}/functions/v1/swift-action`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageBase64: cleanBase64 }),
+  });
 
-    const b64 = result?.imageBase64;
-    if (!b64 || b64.length < 100) {
-      console.log('[cartoonify] Invalid response data');
-      throw new Error('Received empty or invalid image data from API');
-    }
-
-    console.log('[cartoonify] Conversion successful, output base64 length:', b64.length);
-    return b64;
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : JSON.stringify(err);
-    console.log('[cartoonify] Error:', message);
-    throw new Error(message || 'Failed to generate pixel art');
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Edge Function error: ${err}`);
   }
+
+  const result = await response.json();
+  const b64 = result?.imageBase64;
+
+  if (!b64 || b64.length < 100) {
+    throw new Error('Received empty or invalid image data');
+  }
+
+  return b64;
 }
