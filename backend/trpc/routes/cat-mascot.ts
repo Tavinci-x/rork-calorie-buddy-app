@@ -1,46 +1,6 @@
 import * as z from "zod";
 import { createTRPCRouter, publicProcedure } from "../create-context";
 
-async function removeBackground(imageBase64: string): Promise<string> {
-  const removeBgKey = process.env.REMOVE_BG_API_KEY;
-  if (!removeBgKey) {
-    console.log("[cat-mascot] No REMOVE_BG_API_KEY, skipping background removal");
-    return imageBase64;
-  }
-
-  try {
-    console.log("[cat-mascot] Attempting background removal via remove.bg...");
-    const imageBuffer = Buffer.from(imageBase64, "base64");
-    const imageBlob = new Blob([imageBuffer], { type: "image/png" });
-
-    const formData = new FormData();
-    formData.append("image_file", imageBlob, "image.png");
-    formData.append("size", "auto");
-
-    const response = await fetch("https://api.remove.bg/v1.0/removebg", {
-      method: "POST",
-      headers: {
-        "X-Api-Key": removeBgKey,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log("[cat-mascot] remove.bg API error:", response.status, errorText);
-      return imageBase64;
-    }
-
-    const cleanImageBuffer = await response.arrayBuffer();
-    const cleanBase64 = Buffer.from(cleanImageBuffer).toString("base64");
-    console.log("[cat-mascot] Background removed successfully via remove.bg");
-    return cleanBase64;
-  } catch (error) {
-    console.log("[cat-mascot] remove.bg fallback failed:", error);
-    return imageBase64;
-  }
-}
-
 export const catMascotRouter = createTRPCRouter({
   generate: publicProcedure
     .input(
@@ -81,20 +41,20 @@ CRITICAL REQUIREMENTS:
 
       try {
         const cleanBase64 = input.imageBase64.replace(/^data:image\/\w+;base64,/, "");
-        const imageBuffer = Buffer.from(cleanBase64, "base64");
-        const mimeType = cleanBase64.startsWith("/9j/") ? "image/jpeg"
-          : cleanBase64.startsWith("iVBOR") ? "image/png"
-          : "image/jpeg";
-        const imageBlob = new Blob([imageBuffer], { type: mimeType });
+
+        const imageBytes = Uint8Array.from(atob(cleanBase64), (ch) => ch.charCodeAt(0));
+        const isPng = cleanBase64.startsWith("iVBOR");
+        const mimeType = isPng ? "image/png" : "image/jpeg";
+        const fileName = isPng ? "cat.png" : "cat.jpg";
+
+        const file = new File([imageBytes], fileName, { type: mimeType });
 
         const formData = new FormData();
-        formData.append("image", imageBlob, mimeType === "image/png" ? "cat.png" : "cat.jpg");
+        formData.append("image", file);
         formData.append("model", "gpt-image-1");
         formData.append("prompt", prompt);
         formData.append("size", "1024x1024");
         formData.append("quality", "medium");
-        formData.append("background", "transparent");
-        formData.append("output_format", "png");
 
         console.log("[cat-mascot] Sending multipart/form-data request to OpenAI...");
 
@@ -109,9 +69,11 @@ CRITICAL REQUIREMENTS:
           }
         );
 
+        console.log("[cat-mascot] OpenAI status:", response.status);
+
         if (!response.ok) {
           const errorText = await response.text();
-          console.log("[cat-mascot] OpenAI API error:", response.status, errorText);
+          console.log("[cat-mascot] OpenAI API error:", response.status, errorText.slice(0, 500));
           throw new Error(`OpenAI error ${response.status}: ${errorText.slice(0, 400)}`);
         }
 
@@ -121,43 +83,42 @@ CRITICAL REQUIREMENTS:
         let b64: string;
 
         if (contentType.includes("application/json")) {
-          const rawText = await response.text();
-          console.log("[cat-mascot] JSON response (first 200):", rawText.slice(0, 200));
+          const data = await response.json() as { data?: { b64_json?: string; url?: string }[] };
 
-          let data: any;
-          try {
-            data = JSON.parse(rawText);
-          } catch (parseErr: any) {
-            console.log("[cat-mascot] JSON parse failed:", parseErr?.message);
-            throw new Error(`JSON parse error. Raw: ${rawText.slice(0, 300)}`);
-          }
+          const b64Json = data?.data?.[0]?.b64_json;
+          const url = data?.data?.[0]?.url;
 
-          const jsonB64 = data?.data?.[0]?.b64_json;
-          if (!jsonB64) {
-            console.log("[cat-mascot] Unexpected response shape:", JSON.stringify(data).slice(0, 200));
-            throw new Error("No b64_json in OpenAI response");
+          if (b64Json) {
+            b64 = b64Json;
+          } else if (url) {
+            console.log("[cat-mascot] Got URL response, downloading...");
+            const imgResponse = await fetch(url);
+            const imgBuffer = await imgResponse.arrayBuffer();
+            b64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
+          } else {
+            throw new Error("No image data in OpenAI response");
           }
-          b64 = jsonB64;
         } else {
-          console.log("[cat-mascot] Response is binary, converting to base64...");
+          console.log("[cat-mascot] Binary response, converting to base64...");
           const arrayBuffer = await response.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-          b64 = buffer.toString("base64");
-          console.log("[cat-mascot] Converted binary to base64, length:", b64.length);
+          const bytes = new Uint8Array(arrayBuffer);
+          let binary = "";
+          for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          b64 = btoa(binary);
         }
 
         if (!b64 || b64.length < 100) {
           throw new Error("Image data is empty or too small");
         }
 
-        let finalBase64 = b64;
-        finalBase64 = await removeBackground(finalBase64);
-
-        console.log("[cat-mascot] Success, final b64 length:", finalBase64.length);
-        return { imageBase64: finalBase64 };
-      } catch (err: any) {
-        console.log("[cat-mascot] Error:", err?.message ?? String(err));
-        throw new Error(err?.message ?? "Failed to generate pixel art");
+        console.log("[cat-mascot] Success, final b64 length:", b64.length);
+        return { imageBase64: b64 };
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.log("[cat-mascot] Error:", message);
+        throw new Error(message || "Failed to generate pixel art");
       }
     }),
 });

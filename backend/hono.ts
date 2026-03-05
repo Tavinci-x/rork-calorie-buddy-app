@@ -19,13 +19,14 @@ app.use(
 );
 
 app.get("/", (c) => {
-  return c.json({ status: "ok", message: "CalBuddy API is running", version: "1.1", ts: Date.now() });
+  return c.json({ status: "ok", message: "CalBuddy API is running", version: "1.2", ts: Date.now() });
 });
 
 app.post("/generate-mascot", async (c) => {
   try {
     const openaiKey = process.env.OPENAI_API_KEY;
     if (!openaiKey) {
+      console.log("[generate-mascot] OPENAI_API_KEY is missing");
       return c.json({ error: "OPENAI_API_KEY is not configured" }, 500);
     }
 
@@ -59,22 +60,21 @@ CRITICAL REQUIREMENTS:
 - NO realistic rendering — this must look like a 16-bit retro pixel art game character
 - The pixel art cat should be immediately recognizable as the same cat from the photo`;
 
-    const imageBuffer = Buffer.from(cleanBase64, "base64");
-    const mimeType = cleanBase64.startsWith("/9j/") ? "image/jpeg"
-      : cleanBase64.startsWith("iVBOR") ? "image/png"
-      : "image/jpeg";
-    const imageBlob = new Blob([imageBuffer], { type: mimeType });
+    const imageBytes = Uint8Array.from(atob(cleanBase64), (ch) => ch.charCodeAt(0));
+    const isPng = cleanBase64.startsWith("iVBOR");
+    const mimeType = isPng ? "image/png" : "image/jpeg";
+    const fileName = isPng ? "cat.png" : "cat.jpg";
+
+    const file = new File([imageBytes], fileName, { type: mimeType });
 
     const formData = new FormData();
-    formData.append("image", imageBlob, mimeType === "image/png" ? "cat.png" : "cat.jpg");
+    formData.append("image", file);
     formData.append("model", "gpt-image-1");
     formData.append("prompt", prompt);
     formData.append("size", "1024x1024");
     formData.append("quality", "medium");
-    formData.append("background", "transparent");
-    formData.append("output_format", "png");
 
-    console.log("[generate-mascot] Calling OpenAI images/edits...");
+    console.log("[generate-mascot] Calling OpenAI images/edits with model gpt-image-1...");
 
     const response = await fetch("https://api.openai.com/v1/images/edits", {
       method: "POST",
@@ -84,32 +84,46 @@ CRITICAL REQUIREMENTS:
       body: formData,
     });
 
-    const responseText = await response.text();
     console.log("[generate-mascot] OpenAI status:", response.status);
-    console.log("[generate-mascot] OpenAI response (first 300):", responseText.slice(0, 300));
 
     if (!response.ok) {
-      return c.json({ error: `OpenAI error ${response.status}: ${responseText.slice(0, 400)}` }, 500);
+      const errorText = await response.text();
+      console.log("[generate-mascot] OpenAI error:", errorText.slice(0, 500));
+      return c.json({ error: `OpenAI error ${response.status}: ${errorText.slice(0, 400)}` }, 500);
     }
 
+    const contentType = response.headers.get("content-type") || "";
+    console.log("[generate-mascot] Response content-type:", contentType);
+
     let b64: string;
-    try {
-      const data = JSON.parse(responseText);
-      const jsonB64 = data?.data?.[0]?.b64_json;
-      if (!jsonB64) {
-        console.log("[generate-mascot] No b64_json found, keys:", Object.keys(data));
-        return c.json({ error: "No b64_json in OpenAI response" }, 500);
+
+    if (contentType.includes("application/json")) {
+      const data = await response.json() as { data?: { b64_json?: string; url?: string }[] };
+      console.log("[generate-mascot] Got JSON response");
+
+      const b64Json = data?.data?.[0]?.b64_json;
+      const url = data?.data?.[0]?.url;
+
+      if (b64Json) {
+        b64 = b64Json;
+      } else if (url) {
+        console.log("[generate-mascot] Got URL, downloading image...");
+        const imgResponse = await fetch(url);
+        const imgBuffer = await imgResponse.arrayBuffer();
+        b64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
+      } else {
+        console.log("[generate-mascot] No image data in response:", JSON.stringify(data).slice(0, 300));
+        return c.json({ error: "No image data in OpenAI response" }, 500);
       }
-      b64 = jsonB64;
-    } catch {
-      console.log("[generate-mascot] JSON parse failed, treating as binary");
-      const binaryResponse = await fetch("https://api.openai.com/v1/images/edits", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${openaiKey}` },
-        body: formData,
-      });
-      const arrayBuffer = await binaryResponse.arrayBuffer();
-      b64 = Buffer.from(arrayBuffer).toString("base64");
+    } else {
+      console.log("[generate-mascot] Binary response, converting to base64...");
+      const arrayBuffer = await response.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = "";
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      b64 = btoa(binary);
     }
 
     if (!b64 || b64.length < 100) {
@@ -118,9 +132,10 @@ CRITICAL REQUIREMENTS:
 
     console.log("[generate-mascot] Success, b64 length:", b64.length);
     return c.json({ imageBase64: b64 });
-  } catch (err: any) {
-    console.log("[generate-mascot] Unhandled error:", err?.message ?? String(err));
-    return c.json({ error: err?.message ?? "Failed to generate pixel art" }, 500);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.log("[generate-mascot] Unhandled error:", message);
+    return c.json({ error: message || "Failed to generate pixel art" }, 500);
   }
 });
 
