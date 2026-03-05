@@ -30,33 +30,32 @@ CRITICAL REQUIREMENTS:
 - The pixel art cat should be immediately recognizable as the same cat from the photo`;
 
 export async function convertToCartoon(base64Image: string): Promise<string> {
-  console.log('[cartoonify] Starting conversion via Rork Toolkit, base64 length:', base64Image.length);
+  console.log('[cartoonify] Starting conversion via backend API, base64 length:', base64Image.length);
 
   const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
+  const baseUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL || '';
 
   try {
-    const response = await fetch('https://toolkit.rork.com/images/edit/', {
+    const response = await fetch(`${baseUrl}/api/generate-mascot`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        prompt: PIXEL_ART_PROMPT,
-        images: [{ type: 'image', image: cleanBase64 }],
-        aspectRatio: '1:1',
+        imageBase64: cleanBase64,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.log('[cartoonify] Toolkit API error:', response.status, errorText);
-      throw new Error(`Image edit failed (${response.status}): ${errorText.slice(0, 200)}`);
+      console.log('[cartoonify] Backend API error:', response.status, errorText);
+      throw new Error(`Image generation failed (${response.status}): ${errorText.slice(0, 200)}`);
     }
 
     const data = await response.json();
-    console.log('[cartoonify] Got response, mimeType:', data?.image?.mimeType);
+    console.log('[cartoonify] Got response, has imageBase64:', !!data?.imageBase64);
 
-    const b64 = data?.image?.base64Data;
+    const b64 = data?.imageBase64;
     if (!b64 || b64.length < 100) {
       throw new Error('Received empty or invalid image data');
     }
