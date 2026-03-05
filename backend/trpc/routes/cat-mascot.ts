@@ -54,7 +54,6 @@ CRITICAL REQUIREMENTS:
         formData.append("model", "gpt-image-1");
         formData.append("prompt", prompt);
         formData.append("size", "1024x1024");
-        formData.append("quality", "medium");
         formData.append("response_format", "b64_json");
 
         console.log("[cat-mascot] Sending multipart/form-data request to OpenAI...");
